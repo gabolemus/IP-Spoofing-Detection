@@ -1,3 +1,3 @@
 pub mod model;
 
-pub use model::{run, IPSocket};
+pub use model::{send_single_packet, IPSocket};

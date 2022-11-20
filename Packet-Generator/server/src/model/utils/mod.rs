@@ -1,4 +1,3 @@
-pub mod arguments_manager;
 pub mod package_creator;
 
-pub use package_creator::run;
+pub use package_creator::{send_single_packet, MultipleRequestParams, SingleRequestParams};
