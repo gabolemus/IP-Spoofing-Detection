@@ -69,20 +69,23 @@ async fn index() -> impl Responder {
 #[post("/single")]
 // Get the body parameters and send a single spoofed or legitimate packet
 async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
-    println!("Single request page requested");
+    let source_ip = match &params.source_ip {
+        Some(ip) => ip.to_string(),
+        None => "127.0.0.1".to_string(),
+    };
+    let destination_ip = match &params.destination_ip {
+        Some(ip) => ip.to_string(),
+        None => "8.8.8.8".to_string(),
+    };
+
+    println!("Packet {} --> {}", source_ip, destination_ip);
 
     let response = SpoofingResponse {
         message: "Single request page".to_string(),
         packet_count: 1,
         sent_packets: vec![SentPacket {
-            source_ip: match &params.source_ip {
-                Some(ip) => ip.to_string(),
-                None => "127.0.0.1".to_string(),
-            },
-            destination_ip: match &params.destination_ip {
-                Some(ip) => ip.to_string(),
-                None => "8.8.8.8".to_string(),
-            },
+            source_ip,
+            destination_ip,
             ip_version: params.ip_version.unwrap_or(4),
             port: params.port.unwrap_or(80),
             data: params
