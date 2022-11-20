@@ -18,7 +18,9 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - name: Change working directory
+        run: cd Packet-Generator/server/
       - name: Build TCP/IP Traffic Generator image
-        run: docker build -f Packet-Generator/server/Dockerfile -t $REPO:latest -t $REPO:${{ github.sha }} .
+        run: docker build -t $REPO:latest -t $REPO:${{ github.sha }} .
       - name: Push image to DockerHub
         run: docker push $REPO
