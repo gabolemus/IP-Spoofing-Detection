@@ -1,11 +1,18 @@
 use actix_web::{
     get, http::header::ContentType, post, web, App, HttpResponse, HttpServer, Responder,
 };
-use serde::{Deserialize, Serialize};
+use ip_traffic_generator::{
+    model::{
+        networking::socket::SocketError,
+        utils::{MultipleRequestParams, SingleRequestParams},
+    },
+    send_single_packet,
+};
+use serde::Serialize;
 
 // Declare the ip address and port globally
 const IP_ADDRESS: &str = "127.0.0.1";
-const PORT: &str = "8080";
+const PORT: &str = "80";
 
 #[derive(Serialize)]
 struct SentPacket {
@@ -39,36 +46,9 @@ struct GeneralResponse {
     multiple_request_page: String,
 }
 
-#[derive(Serialize, Debug, Deserialize)]
-struct SingleRequestParams {
-    #[serde(rename = "isSpoofed")]
-    is_spoofed: bool,
-    #[serde(rename = "sourceIP")]
-    source_ip: Option<String>,
-    #[serde(rename = "destinationIP")]
-    destination_ip: Option<String>,
-    #[serde(rename = "IPVersion")]
-    ip_version: u8,
-    port: u16,
-    data: String,
-}
-
-#[derive(Serialize, Debug, Deserialize)]
-struct MultipleRequestParams {
-    #[serde(rename = "isSpoofed")]
-    is_spoofed: bool,
-    #[serde(rename = "sourceIP")]
-    source_ip: Option<String>,
-    #[serde(rename = "destinationIP")]
-    destination_ip: Option<String>,
-    #[serde(rename = "IPVersion")]
-    ip_version: u8,
-    port: u16,
-    data: String,
-    // The packet count will determine the number of packets to send
-    // If it's -1, then send packets until a post request is made to /stop
-    #[serde(rename = "packetCount")]
-    packet_count: Option<u32>,
+#[derive(Serialize)]
+struct ErrorResponse {
+    error: String,
 }
 
 #[get("/")]
@@ -103,16 +83,45 @@ async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responde
                 Some(ip) => ip.to_string(),
                 None => "8.8.8.8".to_string(),
             },
-            ip_version: params.ip_version,
-            port: params.port,
-            data: params.data.to_string(),
-            is_spoofed: params.is_spoofed,
+            ip_version: params.ip_version.unwrap_or(4),
+            port: params.port.unwrap_or(80),
+            data: params
+                .data
+                .clone()
+                .unwrap_or("Paquete spoofeado!".to_string()),
+            is_spoofed: params.is_spoofed.unwrap_or(false),
         }],
     };
 
-    HttpResponse::Ok()
-        .content_type(ContentType::json())
-        .json(response)
+    match send_single_packet(params) {
+        Ok(_) => HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(response),
+        Err(err) => {
+            let error_msg;
+
+            if err.is::<SocketError>() {
+                match err.downcast_ref::<SocketError>().unwrap() {
+                    SocketError::SocketCreationError => {
+                        error_msg = "El socket no pudo ser creado. Por favor, asegúrese de ejecutar este programa con privilegios de administrador.".to_string();
+                    }
+
+                    SocketError::SetHeaderError => {
+                        error_msg = "La opción IP_HDRINCL para el socket no pudo ser establecida."
+                            .to_string();
+                    }
+                }
+            } else {
+                error_msg = format!("{}", err);
+            }
+
+            HttpResponse::InternalServerError()
+                .content_type(ContentType::json())
+                .json(ErrorResponse {
+                    error: format!("{}", error_msg),
+                })
+        }
+    }
 }
 
 #[post("/multiple")]
@@ -131,10 +140,13 @@ async fn multiple_request(params: web::Json<MultipleRequestParams>) -> impl Resp
                 Some(ip) => ip.to_string(),
                 None => "8.8.8.8".to_string(),
             },
-            ip_version: params.ip_version,
-            port: params.port,
-            data: params.data.to_string(),
-            is_spoofed: params.is_spoofed,
+            ip_version: params.ip_version.unwrap_or(4),
+            port: params.port.unwrap_or(80),
+            data: params
+                .data
+                .clone()
+                .unwrap_or("Paquete spoofeado!".to_string()),
+            is_spoofed: params.is_spoofed.unwrap_or(false),
         }],
     };
 
