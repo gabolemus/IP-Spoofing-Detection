@@ -107,9 +107,8 @@ fn parse_args(params: web::Json<SingleRequestParams>) -> Config {
 
 /// Create the TCP/IP packet
 fn create_packet(config: &Config) -> Vec<u8> {
-    // Print the addresses
-    println!("Source IP address: {}", config.source_ip);
-    println!("Destination IP address: {}", config.destination_ip);
+    // println!("Source IP address: {}", config.source_ip);
+    // println!("Destination IP address: {}", config.destination_ip);
 
     if config.ip_version == 4 {
         // Create the TCP/IP v4 packet
@@ -123,7 +122,7 @@ fn create_packet(config: &Config) -> Vec<u8> {
         );
 
         // Display the raw packet in hex
-        packet.display();
+        // packet.display();
 
         // Return the packet
         packet.raw
@@ -139,7 +138,7 @@ fn create_packet(config: &Config) -> Vec<u8> {
         );
 
         // Display the raw packet in hex
-        packet.display();
+        // packet.display();
 
         // Return the packet
         packet.raw
