@@ -10,7 +10,7 @@ jobs:
     name: Publish latest Docker image
     runs-on: ubuntu-latest
     env:
-      REPO: ${{ secrets.DOCKER_REPO }}
+      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v2
       - name: Login to DockerHub
@@ -19,8 +19,10 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
       - name: Build TCP/IP Traffic Generator image
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           cd Packet-Generator/server
-          docker build -t $REPO:latest -t $REPO:${{ github.sha }} .
+          docker build -t $DOCKER_USERNAME/packet-generator:latest -t $DOCKER_USERNAME/packet-generator:$IMAGE_TAG .
       - name: Push image to DockerHub
         run: docker push $REPO
