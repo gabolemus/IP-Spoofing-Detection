@@ -4,7 +4,7 @@ name: 'traffic-generator'
 services:
   packet-generator:
     image: gabolemus/packet-generator
-    container_name: generator
+    container_name: packet-generator
     ports:
       - 8080:8080
 
