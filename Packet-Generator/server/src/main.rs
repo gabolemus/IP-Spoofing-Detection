@@ -3,6 +3,7 @@ use actix_web::{
 };
 use ip_traffic_generator::{
     model::{
+        ip_to_string,
         networking::socket::SocketError,
         utils::{MultipleRequestParams, SingleRequestParams},
     },
@@ -69,14 +70,8 @@ async fn index() -> impl Responder {
 #[post("/single")]
 // Get the body parameters and send a single spoofed or legitimate packet
 async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
-    let source_ip = match &params.source_ip {
-        Some(ip) => ip.to_string(),
-        None => "127.0.0.1".to_string(),
-    };
-    let destination_ip = match &params.destination_ip {
-        Some(ip) => ip.to_string(),
-        None => "8.8.8.8".to_string(),
-    };
+    let source_ip = ip_to_string(&params.source_ip, "127.0.0.1");
+    let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
 
     println!("Packet {} --> {}", source_ip, destination_ip);
 
