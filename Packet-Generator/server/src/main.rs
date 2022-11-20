@@ -11,8 +11,8 @@ use ip_traffic_generator::{
 use serde::Serialize;
 
 // Declare the ip address and port globally
-const IP_ADDRESS: &str = "127.0.0.1";
-const PORT: &str = "80";
+const IP_ADDRESS: &str = "0.0.0.0";
+const PORT: &str = "8080";
 
 #[derive(Serialize)]
 struct SentPacket {
