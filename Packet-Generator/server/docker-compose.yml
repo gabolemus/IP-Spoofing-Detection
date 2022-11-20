@@ -14,5 +14,6 @@ services:
     network_mode: "host"
     volumes:
       - ${PWD}/tcpdump:/tcpdump
+    command: -i any -w /tcpdump/network-traffic.pcap
     depends_on:
       - packet-generator
