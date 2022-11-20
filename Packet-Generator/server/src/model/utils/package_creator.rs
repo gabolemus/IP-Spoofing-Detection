@@ -1,11 +1,16 @@
 // This file contains the helpers for creating the spoofed TCP/IP packets.
 
-use super::arguments_manager::{get_addresses, get_destination_ip};
-use crate::{IPSocket, model::networking::{TCPIPv4Packet, TCPIPv6Packet}};
+use crate::{
+    model::networking::{TCPIPv4Packet, TCPIPv6Packet},
+    IPSocket,
+};
+use actix_web::web;
+use serde::{Deserialize, Serialize};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     error::Error,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    str::FromStr,
 };
 
 /// Program arguments.
@@ -25,10 +30,44 @@ pub struct Config {
     pub data: Vec<u8>,
 }
 
-/// Run the configuration to create and send the TCP/IP packet.
-pub fn run(args: Vec<String>) -> Result<&'static str, Box<dyn Error>> {
+#[derive(Serialize, Debug, Deserialize)]
+pub struct SingleRequestParams {
+    #[serde(rename = "isSpoofed")]
+    pub is_spoofed: Option<bool>,
+    #[serde(rename = "sourceIP")]
+    pub source_ip: Option<String>,
+    #[serde(rename = "destinationIP")]
+    pub destination_ip: Option<String>,
+    #[serde(rename = "IPVersion")]
+    pub ip_version: Option<u8>,
+    pub port: Option<u16>,
+    pub data: Option<String>,
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+pub struct MultipleRequestParams {
+    #[serde(rename = "isSpoofed")]
+    pub is_spoofed: Option<bool>,
+    #[serde(rename = "sourceIP")]
+    pub source_ip: Option<String>,
+    #[serde(rename = "destinationIP")]
+    pub destination_ip: Option<String>,
+    #[serde(rename = "IPVersion")]
+    pub ip_version: Option<u8>,
+    pub port: Option<u16>,
+    pub data: Option<String>,
+    // The packet count will determine the number of packets to send
+    // If it's -1, then send packets until a post request is made to /stop
+    #[serde(rename = "packetCount")]
+    pub packet_count: Option<u32>,
+}
+
+/// Send a single TCP/IP packet.
+pub fn send_single_packet(
+    params: web::Json<SingleRequestParams>,
+) -> Result<&'static str, Box<dyn Error>> {
     // Parse the arguments
-    let config = parse_args(args);
+    let config = parse_args(params);
 
     // Create the packet
     let packet = create_packet(&config);
@@ -38,26 +77,31 @@ pub fn run(args: Vec<String>) -> Result<&'static str, Box<dyn Error>> {
 }
 
 /// Parse the program arguments.
-fn parse_args(args: Vec<String>) -> Config {
+fn parse_args(params: web::Json<SingleRequestParams>) -> Config {
     // Default values
-    let source_ip = String::new();
-    let destination_ip = String::new();
-    let ip_version = 4;
-    let port = 80;
-    let data = "Este es un paquete TCP/IP spoofeado y enviado desde Rust!"
-        .as_bytes()
-        .to_vec();
+    let source_ip = String::from("127.0.0.1");
+    let destination_ip = String::from("8.8.8.8");
+    let ip_version = params.ip_version.unwrap_or(4);
+    let port = params.port.unwrap_or(80);
+    let data_msg = params
+        .data
+        .clone()
+        .unwrap_or(String::from("Este es un paquete TCP/IP spoofeado!"));
+    let data = data_msg.as_bytes().to_vec();
 
-    // Check that at least the source and destination IP addresses were provided
-    if args.len() < 3 {
-        get_addresses(source_ip, destination_ip, None, port, data)
-    } else {
-        // Check if the IP address provided are valid
-        if args[1].parse::<IpAddr>().is_ok() && args[2].parse::<IpAddr>().is_ok() {
-            get_destination_ip(args.clone(), args[1].clone(), destination_ip, port, data)
-        } else {
-            get_addresses(source_ip, destination_ip, Some(ip_version), port, data)
+    if ip_version == 4 || ip_version == 6 {
+        Config {
+            source_ip: IpAddr::from_str(&params.source_ip.clone().unwrap_or(source_ip)).unwrap(),
+            destination_ip: IpAddr::from_str(
+                &params.destination_ip.clone().unwrap_or(destination_ip),
+            )
+            .unwrap(),
+            ip_version,
+            port,
+            data,
         }
+    } else {
+        panic!("Invalid IP version");
     }
 }
 
