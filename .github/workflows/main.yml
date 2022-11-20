@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       REPO: ${{ secrets.DOCKER_REPO }}
+      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v2
       - name: Login to DockerHub
@@ -21,6 +22,6 @@ jobs:
       - name: Build TCP/IP Traffic Generator image
         run: |
           cd Packet-Generator/server
-          docker build -t $REPO:latest -t $REPO:${{ github.sha }} .
+          docker build -t $REPO/packet-generator:latest -t $REPO/packet-generator:$IMAGE_TAG .
       - name: Push image to DockerHub
         run: docker push $REPO
