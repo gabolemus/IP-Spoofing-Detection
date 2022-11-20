@@ -162,6 +162,8 @@ async fn multiple_request(params: web::Json<MultipleRequestParams>) -> impl Resp
 async fn main() -> std::io::Result<()> {
     println!("Starting server at http://{}:{}", IP_ADDRESS, PORT);
 
+    // Todo: create a thread to generate simulated genuine packets
+
     HttpServer::new(|| {
         App::new()
             .service(index)
