@@ -1,0 +1,18 @@
+version: '3.9'
+name: 'traffic-generator'
+
+services:
+  packet-generator:
+    image: gabolemus/packet-generator
+    container_name: generator
+    ports:
+      - 8080:8080
+
+  tcpdump:
+    image: kaazing/tcpdump
+    container_name: tcpdump
+    network_mode: "host"
+    volumes:
+      - ${PWD}/tcpdump:/tcpdump
+    depends_on:
+      - packet-generator
