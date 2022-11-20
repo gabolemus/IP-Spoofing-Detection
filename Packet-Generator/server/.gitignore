@@ -1,0 +1,8 @@
+# Compiled files and executables
+target/
+
+# Cargo.lock
+Cargo.lock
+
+# Network traffic dumps
+tcpdump/
