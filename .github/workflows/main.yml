@@ -25,4 +25,4 @@ jobs:
           cd Packet-Generator/server
           docker build -t $DOCKER_USERNAME/packet-generator:latest -t $DOCKER_USERNAME/packet-generator:$IMAGE_TAG .
       - name: Push image to DockerHub
-        run: docker push $DOCKER_USERNAME/packet-generator:latest && docker push $DOCKER_USERNAME/packet-generator:$IMAGE_TAG
+        run: docker image push --all-tags $DOCKER_USERNAME/packet-generator
