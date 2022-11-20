@@ -1,8 +1,2 @@
 # VS Code config
 .vscode/
-
-# Compiled files and executables
-target/
-
-# Cargo.lock
-Cargo.lock

@@ -1,0 +1,11 @@
+# Compiled files and executables
+target/
+
+# Dockerfile
+Dockefile
+
+# Makefile
+Makefile
+
+# Cargo.lock
+Cargo.lock

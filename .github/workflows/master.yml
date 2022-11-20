@@ -1,0 +1,21 @@
+name: Production Environment Deployment
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  docker:
+    name: Publish latest Docker image
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ secrets.DOCKER_REPO }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to DockerHub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build TCP/IP traffic generator Docker image
+        run: docker build Packet-Generator/server/ -t $REPO:latest
+      - name: Push TCP/IP traffic generator Docker image
+        run: docker push $REPO:latest
