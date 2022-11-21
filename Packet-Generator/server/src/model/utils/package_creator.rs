@@ -1,7 +1,7 @@
 // This file contains the helpers for creating the spoofed TCP/IP packets.
 
 use crate::{
-    api::{routes::DUMMY_MESSAGE, DESTINATION_IP_ADDRESS},
+    api::{routes::DUMMY_MESSAGE, DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS},
     model::networking::{TCPIPv4Packet, TCPIPv6Packet},
     IPSocket, SOURCE_IP_ADDRESS,
 };
@@ -286,10 +286,7 @@ fn send_packet(config: &Config, packet: &Vec<u8>) -> Result<&'static str, Box<dy
 }
 
 /// Send multiple TCP/IP packets in a separate async thread
-fn send_multiple_packets_thread(
-    config: Config,
-    packet_count: i32,
-) {
+fn send_multiple_packets_thread(config: Config, packet_count: i32) {
     // Create a new thread
     thread::spawn(move || {
         let mut i = 0;
@@ -297,6 +294,12 @@ fn send_multiple_packets_thread(
         // If the packet count is -1, send packets indefinitely every 1 second
         if packet_count == -1 {
             loop {
+                unsafe {
+                    if STOP_INFINITE_PACKETS {
+                        break;
+                    }
+                }
+
                 i = i + 1;
 
                 // Create the packet
@@ -305,16 +308,12 @@ fn send_multiple_packets_thread(
                 // Send the packet
                 send_packet(&config, &packet).unwrap();
                 println!(
-                    "Packet #{}: {} --> {}",
+                    "Paquete #{}: {} --> {}",
                     i, config.source_ip, config.destination_ip
                 );
 
                 // Wait 1 second
                 thread::sleep(Duration::from_secs(1));
-
-                // if *stop_infinite_packets {
-                //     break;
-                // }
             }
         } else {
             // Send the specified number of packets
@@ -327,7 +326,7 @@ fn send_multiple_packets_thread(
                 // Send the packet
                 send_packet(&config, &packet).unwrap();
                 println!(
-                    "Packet #{}: {} --> {}",
+                    "Paquete #{}: {} --> {}",
                     i, config.source_ip, config.destination_ip
                 );
 
@@ -335,10 +334,7 @@ fn send_multiple_packets_thread(
                 thread::sleep(Duration::from_secs(1));
             }
 
-            println!("Sent {} packets", packet_count);
+            println!("{} paquetes han sido enviados.", i);
         }
     });
 }
-
-/// Stop sending multiple TCP/IP packets
-pub fn stop_sending_packets() {}
