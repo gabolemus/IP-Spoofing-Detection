@@ -48,6 +48,13 @@ pub struct GeneralResponse {
     pub multiple_request_page: String,
 }
 
+/// Generic response sent by the API to provide information.
+#[derive(Serialize)]
+pub struct GenericResponse {
+    /// General informational message.
+    pub message: String,
+}
+
 /// Struct that represents the error response sent by the API.
 #[derive(Serialize)]
 pub struct ErrorResponse {
