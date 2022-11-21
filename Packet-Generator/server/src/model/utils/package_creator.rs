@@ -314,6 +314,7 @@ fn send_multiple_packets_thread(config: Config, packet_count: i32) {
             loop {
                 unsafe {
                     if STOP_INFINITE_PACKETS {
+                        println!("Envío de paquetes interrumpido");
                         break;
                     }
                 }
