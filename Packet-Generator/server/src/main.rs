@@ -6,6 +6,7 @@ async fn main() -> std::io::Result<()> {
     println!("Iniciando el servidor en http://{}:{}", SOURCE_IP_ADDRESS, PORT);
 
     // Todo: create a thread to generate simulated genuine packets
+    // Todo: refactor API routes code
 
     HttpServer::new(|| {
         App::new()
