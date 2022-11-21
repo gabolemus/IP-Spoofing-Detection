@@ -29,7 +29,7 @@ pub struct SpoofingResponse {
     pub message: String,
     /// Number of packets sent.
     #[serde(rename = "packetCount")]
-    pub packet_count: u32,
+    pub packet_count: i32,
     /// List of packets sent.
     #[serde(rename = "sentPackets")]
     pub sent_packets: Vec<SentPacket>,
