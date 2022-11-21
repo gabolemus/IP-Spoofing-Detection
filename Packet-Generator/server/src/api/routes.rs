@@ -157,7 +157,7 @@ pub async fn multiple_requests(
                     sent_packets: vec![],
                 };
 
-                match send_multiple_packets(packet_data, packet_count).await {
+                match send_multiple_packets(packet_data, packet_count, params.wait_time).await {
                     Ok(_) => HttpResponse::Ok()
                         .content_type(ContentType::json())
                         .json(response),
