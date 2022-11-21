@@ -1,9 +1,9 @@
 use actix_web::{App, HttpServer};
-use ip_traffic_generator::{index, multiple_requests, single_request, IP_ADDRESS, PORT};
+use ip_traffic_generator::{index, multiple_requests, single_request, PORT, SOURCE_IP_ADDRESS};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server at http://{}:{}", IP_ADDRESS, PORT);
+    println!("Starting server at http://{}:{}", SOURCE_IP_ADDRESS, PORT);
 
     // Todo: create a thread to generate simulated genuine packets
 
@@ -13,7 +13,7 @@ async fn main() -> std::io::Result<()> {
             .service(single_request)
             .service(multiple_requests)
     })
-    .bind(format!("{}:{}", IP_ADDRESS, PORT))?
+    .bind(format!("{}:{}", SOURCE_IP_ADDRESS, PORT))?
     .run()
     .await
 }
