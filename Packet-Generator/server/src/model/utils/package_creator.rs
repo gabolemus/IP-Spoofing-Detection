@@ -33,6 +33,8 @@ pub struct Config {
     pub packet_count: i32,
     /// The data to be sent.
     pub data: Vec<u8>,
+    /// Wait time between packets in milliseconds.
+    pub wait_time: Option<u64>,
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -103,15 +105,23 @@ pub struct MultipleRequestParams {
     // If it's -1, then send packets until a post request is made to /stop
     #[serde(rename = "packetCount")]
     pub packet_count: Option<i32>,
+    /// Wait time between packets in milliseconds.
+    #[serde(rename = "waitTime")]
+    pub wait_time: Option<u64>,
 }
 
 /// Multiple request parameters implementation.
 impl MultipleRequestParams {
     /// Creates a new instance of the MultipleRequestParams struct.
-    pub fn new(packet_data: Option<SingleRequestParams>, packet_count: Option<i32>) -> Self {
+    pub fn new(
+        packet_data: Option<SingleRequestParams>,
+        packet_count: Option<i32>,
+        wait_time: Option<u64>,
+    ) -> Self {
         Self {
             packet_data,
             packet_count,
+            wait_time,
         }
     }
 
@@ -123,6 +133,7 @@ impl MultipleRequestParams {
                 None => None,
             },
             packet_count: self.packet_count,
+            wait_time: self.wait_time,
         }
     }
 }
@@ -145,9 +156,10 @@ pub fn send_single_packet(
 pub async fn send_multiple_packets(
     params: web::Json<SingleRequestParams>,
     packet_count: i32,
+    wait_time: Option<u64>,
 ) -> Result<&'static str, Box<dyn Error>> {
     // Parse the arguments
-    let config = parse_multiple_req_params(params);
+    let config = parse_multiple_req_params(params, packet_count, wait_time);
 
     // Send the specified number of packets in a separate async thread
     send_multiple_packets_thread(config, packet_count);
@@ -179,6 +191,7 @@ fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
             port,
             packet_count: 1,
             data,
+            wait_time: None,
         }
     } else {
         panic!("Invalid IP version");
@@ -186,7 +199,11 @@ fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
 }
 
 /// Parse the parameters for a multiple request.
-fn parse_multiple_req_params(params: web::Json<SingleRequestParams>) -> Config {
+fn parse_multiple_req_params(
+    params: web::Json<SingleRequestParams>,
+    packet_count: i32,
+    wait_time: Option<u64>,
+) -> Config {
     // Default values
     let source_ip = String::from("127.0.0.1");
     let destination_ip = String::from("8.8.8.8");
@@ -207,8 +224,9 @@ fn parse_multiple_req_params(params: web::Json<SingleRequestParams>) -> Config {
             .unwrap(),
             ip_version,
             port,
-            packet_count: 1,
+            packet_count,
             data,
+            wait_time,            
         }
     } else {
         panic!("Invalid IP version");
@@ -289,10 +307,10 @@ fn send_packet(config: &Config, packet: &Vec<u8>) -> Result<&'static str, Box<dy
 fn send_multiple_packets_thread(config: Config, packet_count: i32) {
     // Create a new thread
     thread::spawn(move || {
-        let mut i = 0;
-
         // If the packet count is -1, send packets indefinitely every 1 second
         if packet_count == -1 {
+            let mut i = 0;
+
             loop {
                 unsafe {
                     if STOP_INFINITE_PACKETS {
@@ -302,39 +320,35 @@ fn send_multiple_packets_thread(config: Config, packet_count: i32) {
 
                 i = i + 1;
 
-                // Create the packet
-                let packet = create_packet(&config);
-
-                // Send the packet
-                send_packet(&config, &packet).unwrap();
-                println!(
-                    "Paquete #{}: {} --> {}",
-                    i, config.source_ip, config.destination_ip
-                );
-
-                // Wait 1 second
-                thread::sleep(Duration::from_secs(1));
+                // Create and send the packet
+                create_and_send_packet(&config, i);
             }
         } else {
             // Send the specified number of packets
-            for _ in 0..packet_count {
-                i = i + 1;
-
-                // Create the packet
-                let packet = create_packet(&config);
-
-                // Send the packet
-                send_packet(&config, &packet).unwrap();
-                println!(
-                    "Paquete #{}: {} --> {}",
-                    i, config.source_ip, config.destination_ip
-                );
-
-                // Wait 1 second
-                thread::sleep(Duration::from_secs(1));
+            for count in 1..packet_count + 1 {
+                // Create and send the packet
+                create_and_send_packet(&config, count);
             }
 
-            println!("{} paquetes han sido enviados.", i);
+            println!("{} paquetes han sido enviados.", packet_count);
         }
     });
+}
+
+/// Create and send packet with the provided configuration
+fn create_and_send_packet(config: &Config, packet_number: i32) {
+    // Create the packet
+    let packet = create_packet(&config);
+
+    // Send the packet
+    send_packet(&config, &packet).unwrap();
+
+    // Print packet info
+    println!(
+        "Paquete #{}: {} --> {}",
+        packet_number, config.source_ip, config.destination_ip
+    );
+
+    // Wait the specified time
+    thread::sleep(Duration::from_millis(config.wait_time.unwrap_or(500)));
 }
