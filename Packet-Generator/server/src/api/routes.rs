@@ -16,6 +16,7 @@ pub const DESTINATION_IP_ADDRESS: &str = "8.8.8.8";
 pub const PORT: &str = "8080";
 pub const DUMMY_MESSAGE: &str = "¡Este es un paquete spoofeado!";
 pub static mut STOP_INFINITE_PACKETS: bool = false;
+pub static mut SENDING_INFINITE_PACKETS: bool = false;
 
 /// Route that shows the index page.
 #[get("/")]
@@ -38,56 +39,67 @@ pub async fn index() -> impl Responder {
 #[post("/single")]
 // Get the body parameters and send a single spoofed or legitimate packet
 pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
-    let source_ip = ip_to_string(&params.source_ip, "127.0.0.1");
-    let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
+    unsafe {
+        if !SENDING_INFINITE_PACKETS {
+            let source_ip = ip_to_string(&params.source_ip, "127.0.0.1");
+            let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
 
-    println!("Paquete único: {} --> {}", source_ip, destination_ip);
+            println!("Paquete único: {} --> {}", source_ip, destination_ip);
 
-    // Construct the response
-    let response = SpoofingResponse {
-        message: "Paquete único enviado".to_string(),
-        packet_count: 1,
-        sent_packets: vec![SentPacket {
-            source_ip,
-            destination_ip,
-            ip_version: params.ip_version.unwrap_or(4),
-            port: params.port.unwrap_or(80),
-            data: params
-                .data
-                .clone()
-                .unwrap_or("Paquete spoofeado!".to_string()),
-            is_spoofed: params.is_spoofed.unwrap_or(false),
-        }],
-    };
+            // Construct the response
+            let response = SpoofingResponse {
+                message: "Paquete único enviado".to_string(),
+                packet_count: 1,
+                sent_packets: vec![SentPacket {
+                    source_ip,
+                    destination_ip,
+                    ip_version: params.ip_version.unwrap_or(4),
+                    port: params.port.unwrap_or(80),
+                    data: params
+                        .data
+                        .clone()
+                        .unwrap_or("Paquete spoofeado!".to_string()),
+                    is_spoofed: params.is_spoofed.unwrap_or(false),
+                }],
+            };
 
-    // Attempt to send the packet and handle the error if it occurs
-    match send_single_packet(params) {
-        Ok(_) => HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .json(response),
-        Err(err) => {
-            let error_msg;
+            // Attempt to send the packet and handle the error if it occurs
+            match send_single_packet(params) {
+                Ok(_) => HttpResponse::Ok()
+                    .content_type(ContentType::json())
+                    .json(response),
+                Err(err) => {
+                    let error_msg;
 
-            if err.is::<SocketError>() {
-                match err.downcast_ref::<SocketError>().unwrap() {
-                    SocketError::SocketCreationError => {
-                        error_msg = "El socket no pudo ser creado. Por favor, asegúrese de ejecutar este programa con privilegios de administrador.".to_string();
+                    if err.is::<SocketError>() {
+                        match err.downcast_ref::<SocketError>().unwrap() {
+                            SocketError::SocketCreationError => {
+                                error_msg = "El socket no pudo ser creado. Por favor, asegúrese de ejecutar este programa con privilegios de administrador.".to_string();
+                            }
+
+                            SocketError::SetHeaderError => {
+                                error_msg =
+                                    "La opción IP_HDRINCL para el socket no pudo ser establecida."
+                                        .to_string();
+                            }
+                        }
+                    } else {
+                        error_msg = format!("{}", err);
                     }
 
-                    SocketError::SetHeaderError => {
-                        error_msg = "La opción IP_HDRINCL para el socket no pudo ser establecida."
-                            .to_string();
-                    }
+                    HttpResponse::InternalServerError()
+                        .content_type(ContentType::json())
+                        .json(ErrorResponse {
+                            error: format!("{}", error_msg),
+                        })
                 }
-            } else {
-                error_msg = format!("{}", err);
             }
-
-            HttpResponse::InternalServerError()
-                .content_type(ContentType::json())
-                .json(ErrorResponse {
-                    error: format!("{}", error_msg),
-                })
+        } else {
+            HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(GenericResponse {
+                message: format!("No es posible enviar un paquete único mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+            })
         }
     }
 }
@@ -103,6 +115,7 @@ pub async fn multiple_requests(
 
         unsafe {
             STOP_INFINITE_PACKETS = true;
+            SENDING_INFINITE_PACKETS = false;
         }
 
         // Return a response
@@ -113,59 +126,73 @@ pub async fn multiple_requests(
             })
     } else {
         unsafe {
-            STOP_INFINITE_PACKETS = false;
-        }
+            if !SENDING_INFINITE_PACKETS {
+                let infinite_packets_requested = match params.packet_count {
+                    Some(count) => count == -1,
+                    None => false,
+                };
 
-        let packet_count_msg = match params.packet_count {
-            Some(-1) => "Enviando una cantidad indefinida de paquetes...".to_string(),
-            Some(count) => format!("Enviando {} paquetes...", count),
-            None => "Enviando una cantidad indefinida de paquetes...".to_string(),
-        };
-        println!("Múltiples paquetes solicitados. {}", packet_count_msg);
+                STOP_INFINITE_PACKETS = false;
+                SENDING_INFINITE_PACKETS = infinite_packets_requested;
 
-        // Get the packet data if it's provided or create a default one
-        let packet_data = params
-            .packet_data
-            .clone()
-            .unwrap_or(SingleRequestParams::get_default_packet());
-        let packet_data = web::Json(packet_data);
-        let packet_count = params.packet_count.unwrap_or(-1);
+                let packet_count_msg = match params.packet_count {
+                    Some(-1) => "Enviando una cantidad indefinida de paquetes...".to_string(),
+                    Some(count) => format!("Enviando {} paquetes...", count),
+                    None => "Enviando una cantidad indefinida de paquetes...".to_string(),
+                };
+                println!("Múltiples paquetes solicitados. {}", packet_count_msg);
 
-        // Construct the response
-        let response = SpoofingResponse {
-            message: "Múltiples paquetes enviados".to_string(),
-            packet_count,
-            sent_packets: vec![],
-        };
+                // Get the packet data if it's provided or create a default one
+                let packet_data = params
+                    .packet_data
+                    .clone()
+                    .unwrap_or(SingleRequestParams::get_default_packet());
+                let packet_data = web::Json(packet_data);
+                let packet_count = params.packet_count.unwrap_or(1);
 
-        match send_multiple_packets(packet_data, packet_count).await {
-            Ok(_) => HttpResponse::Ok()
-                .content_type(ContentType::json())
-                .json(response),
-            Err(err) => {
-                let error_msg;
+                // Construct the response
+                let response = SpoofingResponse {
+                    message: "Múltiples paquetes enviados".to_string(),
+                    packet_count,
+                    sent_packets: vec![],
+                };
 
-                if err.is::<SocketError>() {
-                    match err.downcast_ref::<SocketError>().unwrap() {
-                        SocketError::SocketCreationError => {
-                            error_msg = "El socket no pudo ser creado. Por favor, asegúrese de ejecutar este programa con privilegios de administrador.".to_string();
+                match send_multiple_packets(packet_data, packet_count).await {
+                    Ok(_) => HttpResponse::Ok()
+                        .content_type(ContentType::json())
+                        .json(response),
+                    Err(err) => {
+                        let error_msg;
+
+                        if err.is::<SocketError>() {
+                            match err.downcast_ref::<SocketError>().unwrap() {
+                                SocketError::SocketCreationError => {
+                                    error_msg = "El socket no pudo ser creado. Por favor, asegúrese de ejecutar este programa con privilegios de administrador.".to_string();
+                                }
+
+                                SocketError::SetHeaderError => {
+                                    error_msg =
+                                    "La opción IP_HDRINCL para el socket no pudo ser establecida."
+                                        .to_string();
+                                }
+                            }
+                        } else {
+                            error_msg = format!("{}", err);
                         }
 
-                        SocketError::SetHeaderError => {
-                            error_msg =
-                                "La opción IP_HDRINCL para el socket no pudo ser establecida."
-                                    .to_string();
-                        }
+                        HttpResponse::InternalServerError()
+                            .content_type(ContentType::json())
+                            .json(ErrorResponse {
+                                error: format!("{}", error_msg),
+                            })
                     }
-                } else {
-                    error_msg = format!("{}", err);
                 }
-
-                HttpResponse::InternalServerError()
-                    .content_type(ContentType::json())
-                    .json(ErrorResponse {
-                        error: format!("{}", error_msg),
-                    })
+            } else {
+                HttpResponse::Ok()
+                .content_type(ContentType::json())
+                .json(GenericResponse {
+                    message: format!("No es posible enviar múltiples paquetes mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+                })
             }
         }
     }
