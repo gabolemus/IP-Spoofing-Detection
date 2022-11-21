@@ -1,6 +1,6 @@
 /// This file contains the routes for the API.
 use crate::{
-    api::{ErrorResponse, GeneralResponse, GenericResponse, SentPacket, SpoofingResponse},
+    api::{ErrorResponse, GeneralResponse, GenericResponse, SpoofingResponse},
     model::{
         ip_to_string,
         networking::socket::SocketError,
@@ -48,19 +48,8 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
 
             // Construct the response
             let response = SpoofingResponse {
-                message: "Paquete único enviado".to_string(),
+                message: "Paquete único enviado.".to_string(),
                 packet_count: 1,
-                sent_packets: vec![SentPacket {
-                    source_ip,
-                    destination_ip,
-                    ip_version: params.ip_version.unwrap_or(4),
-                    port: params.port.unwrap_or(80),
-                    data: params
-                        .data
-                        .clone()
-                        .unwrap_or("Paquete spoofeado!".to_string()),
-                    is_spoofed: params.is_spoofed.unwrap_or(false),
-                }],
             };
 
             // Attempt to send the packet and handle the error if it occurs
@@ -152,9 +141,8 @@ pub async fn multiple_requests(
 
                 // Construct the response
                 let response = SpoofingResponse {
-                    message: "Múltiples paquetes enviados".to_string(),
+                    message: "Múltiples paquetes enviados.".to_string(),
                     packet_count,
-                    sent_packets: vec![],
                 };
 
                 match send_multiple_packets(packet_data, packet_count, params.wait_time).await {
