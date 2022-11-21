@@ -13,10 +13,12 @@ use actix_web::{get, http::header::ContentType, post, web, HttpResponse, Respond
 pub const IP_ADDRESS: &str = "0.0.0.0";
 pub const PORT: &str = "8080";
 
+/// Route that shows the index page.
 #[get("/")]
 pub async fn index() -> impl Responder {
     println!("Index page requested");
 
+    // Show a welcome message and return the links to the single and multiple request pages.
     let response = GeneralResponse {
         message: "Welcome to the TCP/IP packet spoofing API!".to_string(),
         single_request_page: format!("http://{}:{}/single", IP_ADDRESS, PORT),
@@ -28,6 +30,7 @@ pub async fn index() -> impl Responder {
         .json(response)
 }
 
+/// Route that generates a single spoofed or genuine packet.
 #[post("/single")]
 // Get the body parameters and send a single spoofed or legitimate packet
 pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
@@ -36,6 +39,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
 
     println!("Packet {} --> {}", source_ip, destination_ip);
 
+    // Construct the response
     let response = SpoofingResponse {
         message: "Single request page".to_string(),
         packet_count: 1,
@@ -52,6 +56,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
         }],
     };
 
+    // Attempt to send the packet and handle the error if it occurs
     match send_single_packet(params) {
         Ok(_) => HttpResponse::Ok()
             .content_type(ContentType::json())
@@ -83,10 +88,12 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
     }
 }
 
+/// Route that generates multiple spoofed or genuine packets.
 #[post("/multiple")]
 pub async fn multiple_requests(params: web::Json<MultipleRequestParams>) -> impl Responder {
     println!("Multiple request page requested");
 
+    // Construct the response
     let response = SpoofingResponse {
         message: "Multiple request page".to_string(),
         packet_count: params.packet_count.unwrap_or(1),
