@@ -3,7 +3,7 @@ use ip_traffic_generator::{index, multiple_requests, single_request, PORT, SOURC
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server at http://{}:{}", SOURCE_IP_ADDRESS, PORT);
+    println!("Iniciando el servidor en http://{}:{}", SOURCE_IP_ADDRESS, PORT);
 
     // Todo: create a thread to generate simulated genuine packets
 
