@@ -55,6 +55,11 @@ impl Config {
         self.thread_number = thread_number;
     }
 
+    /// Randomize the TCP port.
+    pub fn randomize_port(&mut self) {
+        self.port = rand::thread_rng().gen_range(1024..65535);
+    }
+
     /// Clone the config struct.
     pub fn clone(&self) -> Config {
         Config {
@@ -186,7 +191,7 @@ pub fn send_single_packet(
     let mut config = parse_single_req_params(params);
 
     // Create the packet
-    let packet = create_packet(&mut config, spoof_packet, false);
+    let packet = create_packet(&mut config, spoof_packet, false, false);
 
     // Send the packet
     send_packet(&config, &packet)
@@ -200,22 +205,43 @@ pub async fn send_multiple_packets(
     spoof_packet: bool,
     randomize_source_ip: bool,
 ) -> Result<&'static str, Box<dyn Error>> {
+    // Check if the TCP port should be randomized
+    let randomize_tcp_port = match params.port {
+        Some(_) => false,
+        None => true,
+    };
+
     // Parse the arguments
     let config = parse_multiple_req_params(params, packet_count, wait_time);
 
     // Send the specified number of packets in a separate async thread
-    send_multiple_packets_thread(config, packet_count, spoof_packet, randomize_source_ip);
+    send_multiple_packets_thread(
+        config,
+        packet_count,
+        spoof_packet,
+        randomize_source_ip,
+        randomize_tcp_port,
+    );
 
     Ok("Packets sent")
 }
 
 /// Parse the parameters for a single request.
 fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
+    println!("TCP port: {:?}", params.port);
+
+    let tcp_port = match params.port {
+        Some(port) => port,
+        None => rand::thread_rng().gen_range(1024..=65535), // Generate a random source port (between 1024 and 65535)
+    };
+
+    println!("TCP port: {:?}", tcp_port);
+
     Config {
         source_ip: string_to_ipaddr(&params.source_ip, &get_local_ip("127.0.0.1")),
         destination_ip: string_to_ipaddr(&params.destination_ip, DESTINATION_IP_ADDRESS),
         ip_version: params.ip_version.unwrap_or(4),
-        port: params.port.unwrap_or(80),
+        port: tcp_port,
         packet_count: 1,
         data: generate_data(&params.data, DUMMY_MESSAGE),
         wait_time: None,
@@ -243,11 +269,16 @@ fn parse_multiple_req_params(
     packet_count: i32,
     wait_time: Option<u64>,
 ) -> Config {
+    // TCP port
+    let tcp_port = match params.port {
+        Some(port) => port,
+        None => rand::thread_rng().gen_range(1024..65535), // Generate a random source port (between 1024 and 65535)
+    };
+
     // Default values
     let source_ip = String::from("127.0.0.1");
     let destination_ip = String::from("8.8.8.8");
     let ip_version = params.ip_version.unwrap_or(4);
-    let port = params.port.unwrap_or(80);
     let data_msg = params
         .data
         .clone()
@@ -262,7 +293,7 @@ fn parse_multiple_req_params(
             )
             .unwrap(),
             ip_version,
-            port,
+            port: tcp_port,
             packet_count,
             data,
             wait_time,
@@ -274,9 +305,17 @@ fn parse_multiple_req_params(
 }
 
 /// Create the TCP/IP packet
-fn create_packet(config: &mut Config, spoof_packet: bool, randomize_source_ip: bool) -> Vec<u8> {
+fn create_packet(
+    config: &mut Config,
+    spoof_packet: bool,
+    randomize_source_ip: bool,
+    randomize_tcp_port: bool,
+) -> Vec<u8> {
     // println!("Source IP address: {}", config.source_ip);
     // println!("Destination IP address: {}", config.destination_ip);
+    if randomize_tcp_port {
+        config.randomize_port();
+    }
 
     if config.ip_version == 4 {
         if randomize_source_ip {
@@ -377,11 +416,6 @@ fn send_packet(config: &Config, packet: &Vec<u8>) -> Result<&'static str, Box<dy
     // Send the packet
     IPSocket::send_to(&socket, &packet, config.destination_ip, config.port)?;
 
-    // Allow sending the next packet
-    // unsafe {
-    //     SENDING_PACKETS = false;
-    // }
-
     // Packet sent successfully
     Ok("\nEl paquete ha sido enviado exitosamente.")
 }
@@ -392,6 +426,7 @@ fn send_multiple_packets_thread(
     packet_count: i32,
     spoof_packet: bool,
     randomize_source_ip: bool,
+    randomize_tcp_port: bool,
 ) {
     // Create a new thread
     thread::spawn(move || {
@@ -421,6 +456,7 @@ fn send_multiple_packets_thread(
                     spoof_packet,
                     randomize_source_ip,
                     unsafe { THREAD_COUNT },
+                    randomize_tcp_port,
                 );
             }
         } else {
@@ -443,6 +479,7 @@ fn send_multiple_packets_thread(
                     spoof_packet,
                     randomize_source_ip,
                     unsafe { THREAD_COUNT },
+                    randomize_tcp_port,
                 );
                 i += 1;
             }
@@ -465,11 +502,17 @@ fn create_and_send_packet(
     spoof_packet: bool,
     randomize_source_ip: bool,
     thread_number: u32,
+    randomize_tcp_port: bool,
 ) {
     let mut temp_config = config.clone();
 
     // Create the packet
-    let packet = create_packet(&mut temp_config, spoof_packet, randomize_source_ip);
+    let packet = create_packet(
+        &mut temp_config,
+        spoof_packet,
+        randomize_source_ip,
+        randomize_tcp_port,
+    );
 
     // Send the packet
     send_packet(&config, &packet).unwrap();
