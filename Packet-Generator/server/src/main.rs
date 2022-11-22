@@ -7,7 +7,6 @@ async fn main() -> std::io::Result<()> {
 
     // Todo: create a thread to generate simulated genuine packets
     // Todo: refactor API routes code
-    // Todo: randomize spoofed source IP address
 
     HttpServer::new(|| {
         App::new()
