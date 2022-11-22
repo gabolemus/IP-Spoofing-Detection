@@ -9,7 +9,7 @@ services:
       - 8080:8080
 
   tcpdump:
-    image: kaazing/tcpdump
+    image: gabolemus/packet-monitor
     container_name: traffic-capture
     network_mode: "host"
     volumes:
