@@ -47,6 +47,8 @@ pub struct SingleRequestParams {
     pub ip_version: Option<u8>,
     pub port: Option<u16>,
     pub data: Option<String>,
+    #[serde(rename = "setEvilBit")]
+    pub set_evil_bit: Option<bool>,
 }
 
 /// Single request parameters implementation.
@@ -58,6 +60,7 @@ impl SingleRequestParams {
         ip_version: Option<u8>,
         port: Option<u16>,
         data: Option<String>,
+        set_evil_bit: Option<bool>,
     ) -> Self {
         Self {
             source_ip,
@@ -65,6 +68,7 @@ impl SingleRequestParams {
             ip_version,
             port,
             data,
+            set_evil_bit,
         }
     }
 
@@ -76,6 +80,7 @@ impl SingleRequestParams {
             ip_version: Some(4),
             port: Some(80),
             data: Some(DUMMY_MESSAGE.to_string()),
+            set_evil_bit: Some(true),
         }
     }
 
@@ -87,6 +92,7 @@ impl SingleRequestParams {
             ip_version: self.ip_version,
             port: self.port,
             data: self.data.clone(),
+            set_evil_bit: self.set_evil_bit,
         }
     }
 }
@@ -135,12 +141,13 @@ impl MultipleRequestParams {
 /// Send a single TCP/IP packet.
 pub fn send_single_packet(
     params: web::Json<SingleRequestParams>,
+    spoof_packet: bool,
 ) -> Result<&'static str, Box<dyn Error>> {
     // Parse the arguments
     let config = parse_single_req_params(params);
 
     // Create the packet
-    let packet = create_packet(&config);
+    let packet = create_packet(&config, spoof_packet);
 
     // Send the packet
     send_packet(&config, &packet)
@@ -151,12 +158,13 @@ pub async fn send_multiple_packets(
     params: web::Json<SingleRequestParams>,
     packet_count: i32,
     wait_time: Option<u64>,
+    spoof_packet: bool,
 ) -> Result<&'static str, Box<dyn Error>> {
     // Parse the arguments
     let config = parse_multiple_req_params(params, packet_count, wait_time);
 
     // Send the specified number of packets in a separate async thread
-    send_multiple_packets_thread(config, packet_count);
+    send_multiple_packets_thread(config, packet_count, spoof_packet);
 
     Ok("Packets sent")
 }
@@ -224,7 +232,7 @@ fn parse_multiple_req_params(
 }
 
 /// Create the TCP/IP packet
-fn create_packet(config: &Config) -> Vec<u8> {
+fn create_packet(config: &Config, spoof_packet: bool) -> Vec<u8> {
     // println!("Source IP address: {}", config.source_ip);
     // println!("Destination IP address: {}", config.destination_ip);
 
@@ -237,6 +245,7 @@ fn create_packet(config: &Config) -> Vec<u8> {
             // None, // Send no payload
             None,
             config.port,
+            spoof_packet,
         );
 
         // Display the raw packet in hex
@@ -294,7 +303,7 @@ fn send_packet(config: &Config, packet: &Vec<u8>) -> Result<&'static str, Box<dy
 }
 
 /// Send multiple TCP/IP packets in a separate async thread
-fn send_multiple_packets_thread(config: Config, packet_count: i32) {
+fn send_multiple_packets_thread(config: Config, packet_count: i32, spoof_packet: bool) {
     // Create a new thread
     thread::spawn(move || {
         // If the packet count is -1, send packets indefinitely every 1 second
@@ -312,13 +321,13 @@ fn send_multiple_packets_thread(config: Config, packet_count: i32) {
                 i = i + 1;
 
                 // Create and send the packet
-                create_and_send_packet(&config, i);
+                create_and_send_packet(&config, i, spoof_packet);
             }
         } else {
             // Send the specified number of packets
             for count in 1..packet_count + 1 {
                 // Create and send the packet
-                create_and_send_packet(&config, count);
+                create_and_send_packet(&config, count, spoof_packet);
             }
 
             println!("{} paquetes han sido enviados.", packet_count);
@@ -327,9 +336,10 @@ fn send_multiple_packets_thread(config: Config, packet_count: i32) {
 }
 
 /// Create and send packet with the provided configuration
-fn create_and_send_packet(config: &Config, packet_number: i32) {
+fn create_and_send_packet(config: &Config, packet_number: i32, spoof_packet: bool) {
     // Create the packet
-    let packet = create_packet(&config);
+    let packet = create_packet(&config, spoof_packet);
+    // Todo: fix the previous line; also, add an option to randomize the spoofed addresses when sending multiple packets
 
     // Send the packet
     send_packet(&config, &packet).unwrap();
