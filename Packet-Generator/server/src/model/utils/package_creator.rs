@@ -2,8 +2,8 @@
 
 use crate::{
     api::{routes::DUMMY_MESSAGE, DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS},
-    model::networking::{TCPIPv4Packet, TCPIPv6Packet},
-    IPSocket, SOURCE_IP_ADDRESS,
+    model::networking::{get_local_ip, TCPIPv4Packet, TCPIPv6Packet},
+    IPSocket, API_IP_ADDRESS,
 };
 use actix_web::web;
 use serde::{Deserialize, Serialize};
@@ -39,8 +39,6 @@ pub struct Config {
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct SingleRequestParams {
-    #[serde(rename = "isSpoofed")]
-    pub is_spoofed: Option<bool>,
     #[serde(rename = "sourceIP")]
     pub source_ip: Option<String>,
     #[serde(rename = "destinationIP")]
@@ -55,7 +53,6 @@ pub struct SingleRequestParams {
 impl SingleRequestParams {
     /// Creates a new instance of the SingleRequestParams struct.
     pub fn new(
-        is_spoofed: Option<bool>,
         source_ip: Option<String>,
         destination_ip: Option<String>,
         ip_version: Option<u8>,
@@ -63,7 +60,6 @@ impl SingleRequestParams {
         data: Option<String>,
     ) -> Self {
         Self {
-            is_spoofed,
             source_ip,
             destination_ip,
             ip_version,
@@ -75,8 +71,7 @@ impl SingleRequestParams {
     /// Create a packet with default values.
     pub fn get_default_packet() -> Self {
         Self {
-            is_spoofed: Some(false),
-            source_ip: Some(SOURCE_IP_ADDRESS.to_string()),
+            source_ip: Some(API_IP_ADDRESS.to_string()),
             destination_ip: Some(DESTINATION_IP_ADDRESS.to_string()),
             ip_version: Some(4),
             port: Some(80),
@@ -87,7 +82,6 @@ impl SingleRequestParams {
     /// Clones the SingleRequestParams struct.
     pub fn clone(&self) -> Self {
         Self {
-            is_spoofed: self.is_spoofed,
             source_ip: self.source_ip.clone(),
             destination_ip: self.destination_ip.clone(),
             ip_version: self.ip_version,
@@ -169,33 +163,29 @@ pub async fn send_multiple_packets(
 
 /// Parse the parameters for a single request.
 fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
-    // Default values
-    let source_ip = String::from("127.0.0.1");
-    let destination_ip = String::from("8.8.8.8");
-    let ip_version = params.ip_version.unwrap_or(4);
-    let port = params.port.unwrap_or(80);
-    let data_msg = params
-        .data
-        .clone()
-        .unwrap_or(String::from("Este es un paquete TCP/IP spoofeado!"));
-    let data = data_msg.as_bytes().to_vec();
-
-    if ip_version == 4 || ip_version == 6 {
-        Config {
-            source_ip: IpAddr::from_str(&params.source_ip.clone().unwrap_or(source_ip)).unwrap(),
-            destination_ip: IpAddr::from_str(
-                &params.destination_ip.clone().unwrap_or(destination_ip),
-            )
-            .unwrap(),
-            ip_version,
-            port,
-            packet_count: 1,
-            data,
-            wait_time: None,
-        }
-    } else {
-        panic!("Invalid IP version");
+    Config {
+        source_ip: string_to_ipaddr(&params.source_ip, &get_local_ip("127.0.0.1")),
+        destination_ip: string_to_ipaddr(&params.destination_ip, DESTINATION_IP_ADDRESS),
+        ip_version: params.ip_version.unwrap_or(4),
+        port: params.port.unwrap_or(80),
+        packet_count: 1,
+        data: generate_data(&params.data, DUMMY_MESSAGE),
+        wait_time: None,
     }
+}
+
+/// Get the provided IP address or provide a default one.
+fn string_to_ipaddr(ip: &Option<String>, default: &str) -> IpAddr {
+    IpAddr::from_str(&ip.clone().unwrap_or(String::from(default))).unwrap()
+}
+
+/// Generate a byte vector from the provided message or the default one.
+fn generate_data(message: &Option<String>, default: &str) -> Vec<u8> {
+    message
+        .clone()
+        .unwrap_or(String::from(default))
+        .as_bytes()
+        .to_vec()
 }
 
 /// Parse the parameters for a multiple request.
@@ -226,7 +216,7 @@ fn parse_multiple_req_params(
             port,
             packet_count,
             data,
-            wait_time,            
+            wait_time,
         }
     } else {
         panic!("Invalid IP version");
