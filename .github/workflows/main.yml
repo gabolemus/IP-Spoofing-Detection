@@ -18,12 +18,10 @@ jobs:
       - name: Build TCP/IP Traffic Generator image
         run: |
           cd Packet-Generator/server
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest -t ${{ secrets.DOCKER_USERNAME }}/packet-generator:${{ github.sha }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest .
       - name: Push image to Docker Hub
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:${{ github.sha }}
-  
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest
+
   traffic-monitor-image:
     name: Publish latest Docker image
     runs-on: ubuntu-latest
@@ -36,8 +34,6 @@ jobs:
       - name: Build TCP/IP Traffic Monitor image
         run: |
           cd Traffic-Monitor
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest -t ${{ secrets.DOCKER_USERNAME }}/packet-monitor:${{ github.sha }} .
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest .
       - name: Push image to Docker Hub
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:${{ github.sha }}
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest
