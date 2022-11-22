@@ -131,6 +131,10 @@ pub async fn multiple_requests(
                     Some(count) => count == -1,
                     None => false,
                 };
+                let randomize_source_ip = match &params.random_source_ip {
+                    Some(randomize_source_ip) => *randomize_source_ip,
+                    None => false,
+                };
 
                 STOP_INFINITE_PACKETS = false;
                 SENDING_INFINITE_PACKETS = infinite_packets_requested;
@@ -161,6 +165,7 @@ pub async fn multiple_requests(
                     packet_count,
                     params.wait_time,
                     spoof_packet,
+                    randomize_source_ip,
                 )
                 .await
                 {
