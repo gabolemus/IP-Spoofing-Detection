@@ -1,7 +1,10 @@
 // This file contains the helpers for creating the spoofed TCP/IP packets.
 
 use crate::{
-    api::{routes::DUMMY_MESSAGE, DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS},
+    api::{
+        routes::{DUMMY_MESSAGE, THREAD_COUNT},
+        DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS,
+    },
     model::networking::{get_local_ip, TCPIPv4Packet, TCPIPv6Packet},
     IPSocket, API_IP_ADDRESS,
 };
@@ -36,6 +39,8 @@ pub struct Config {
     pub data: Vec<u8>,
     /// Wait time between packets in milliseconds.
     pub wait_time: Option<u64>,
+    /// Thread number.
+    pub thread_number: i8,
 }
 
 /// Config struct implementations.
@@ -43,6 +48,11 @@ impl Config {
     /// Change the source IP address.
     pub fn set_source_ip(&mut self, source_ip: IpAddr) {
         self.source_ip = source_ip;
+    }
+
+    /// Change the thread number.
+    pub fn set_thread_number(&mut self, thread_number: i8) {
+        self.thread_number = thread_number;
     }
 
     /// Clone the config struct.
@@ -55,6 +65,7 @@ impl Config {
             packet_count: self.packet_count,
             data: self.data.clone(),
             wait_time: self.wait_time,
+            thread_number: self.thread_number,
         }
     }
 }
@@ -208,6 +219,7 @@ fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
         packet_count: 1,
         data: generate_data(&params.data, DUMMY_MESSAGE),
         wait_time: None,
+        thread_number: 0,
     }
 }
 
@@ -254,6 +266,7 @@ fn parse_multiple_req_params(
             packet_count,
             data,
             wait_time,
+            thread_number: 0,
         }
     } else {
         panic!("Invalid IP version");
@@ -364,6 +377,11 @@ fn send_packet(config: &Config, packet: &Vec<u8>) -> Result<&'static str, Box<dy
     // Send the packet
     IPSocket::send_to(&socket, &packet, config.destination_ip, config.port)?;
 
+    // Allow sending the next packet
+    // unsafe {
+    //     SENDING_PACKETS = false;
+    // }
+
     // Packet sent successfully
     Ok("\nEl paquete ha sido enviado exitosamente.")
 }
@@ -377,14 +395,19 @@ fn send_multiple_packets_thread(
 ) {
     // Create a new thread
     thread::spawn(move || {
+        unsafe {
+            THREAD_COUNT += 1;
+        }
+
+        let mut i = 0;
+
         // If the packet count is -1, send packets indefinitely every 1 second
         if packet_count == -1 {
-            let mut i = 0;
-
             loop {
                 unsafe {
                     if STOP_INFINITE_PACKETS {
                         println!("Envío de paquetes interrumpido");
+                        println!("{} paquetes han sido enviados.", i);
                         break;
                     }
                 }
@@ -392,16 +415,45 @@ fn send_multiple_packets_thread(
                 i = i + 1;
 
                 // Create and send the packet
-                create_and_send_packet(config.clone(), i, spoof_packet, randomize_source_ip);
+                create_and_send_packet(
+                    config.clone(),
+                    i,
+                    spoof_packet,
+                    randomize_source_ip,
+                    unsafe { THREAD_COUNT },
+                );
             }
         } else {
             // Send the specified number of packets
             for count in 1..packet_count + 1 {
+                unsafe {
+                    if STOP_INFINITE_PACKETS {
+                        println!(
+                            "Envío de paquetes interrumpido en el hilo #{}",
+                            THREAD_COUNT
+                        );
+                        break;
+                    }
+                }
+
                 // Create and send the packet
-                create_and_send_packet(config.clone(), count, spoof_packet, randomize_source_ip);
+                create_and_send_packet(
+                    config.clone(),
+                    count,
+                    spoof_packet,
+                    randomize_source_ip,
+                    unsafe { THREAD_COUNT },
+                );
+                i += 1;
             }
 
-            println!("{} paquetes han sido enviados.", packet_count);
+            println!("{} paquetes han sido enviados en el hilo #{}", i, unsafe {
+                THREAD_COUNT
+            });
+        }
+
+        unsafe {
+            THREAD_COUNT -= 1;
         }
     });
 }
@@ -412,6 +464,7 @@ fn create_and_send_packet(
     packet_number: i32,
     spoof_packet: bool,
     randomize_source_ip: bool,
+    thread_number: u32,
 ) {
     let mut temp_config = config.clone();
 
@@ -423,8 +476,8 @@ fn create_and_send_packet(
 
     // Print packet info
     println!(
-        "Paquete #{}: {} --> {}",
-        packet_number, temp_config.source_ip, temp_config.destination_ip
+        "Paquete #{} - Hilo #{}: {} --> {}",
+        packet_number, thread_number, temp_config.source_ip, temp_config.destination_ip
     );
 
     // Wait the specified time
