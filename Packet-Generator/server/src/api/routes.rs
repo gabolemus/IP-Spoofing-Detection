@@ -43,6 +43,10 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
         if !SENDING_INFINITE_PACKETS {
             let source_ip = ip_to_string(&params.source_ip, &get_local_ip("127.0.0.1"));
             let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
+            let spoof_packet = match params.set_evil_bit {
+                Some(set_evil_bit) => set_evil_bit,
+                None => true,
+            };
 
             println!("Paquete único: {} --> {}", source_ip, destination_ip);
 
@@ -53,7 +57,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
             };
 
             // Attempt to send the packet and handle the error if it occurs
-            match send_single_packet(params) {
+            match send_single_packet(params, spoof_packet) {
                 Ok(_) => HttpResponse::Ok()
                     .content_type(ContentType::json())
                     .json(response),
@@ -116,6 +120,13 @@ pub async fn multiple_requests(
     } else {
         unsafe {
             if !SENDING_INFINITE_PACKETS {
+                let spoof_packet = match &params.packet_data {
+                    Some(packet_data) => match packet_data.set_evil_bit {
+                        Some(set_evil_bit) => set_evil_bit,
+                        None => true,
+                    },
+                    None => true,
+                };
                 let infinite_packets_requested = match params.packet_count {
                     Some(count) => count == -1,
                     None => false,
@@ -145,7 +156,14 @@ pub async fn multiple_requests(
                     packet_count,
                 };
 
-                match send_multiple_packets(packet_data, packet_count, params.wait_time).await {
+                match send_multiple_packets(
+                    packet_data,
+                    packet_count,
+                    params.wait_time,
+                    spoof_packet,
+                )
+                .await
+                {
                     Ok(_) => HttpResponse::Ok()
                         .content_type(ContentType::json())
                         .json(response),
