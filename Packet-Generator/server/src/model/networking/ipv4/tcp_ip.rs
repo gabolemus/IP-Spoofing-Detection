@@ -20,6 +20,7 @@ impl TCPIPv4Packet {
         data: Option<Vec<u8>>,
         options: Option<Vec<u8>>,
         port: u16,
+        is_spoofed: bool,
     ) -> TCPIPv4Packet {
         // IPv4 Packet
         let mut ipv4_packet = IPv4Packet::new(
@@ -33,6 +34,7 @@ impl TCPIPv4Packet {
             destination_ip,
             None,
             None,
+            is_spoofed
         );
 
         // TCP Packet
