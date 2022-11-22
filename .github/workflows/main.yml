@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  docker:
+  traffic-generator-image:
     name: Publish latest Docker image
     runs-on: ubuntu-latest
     env:
@@ -23,3 +23,21 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:${{ github.sha }}
+  
+  traffic-monitor-image:
+    name: Publish latest Docker image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build TCP/IP Traffic Monitor image
+        run: |
+          cd Traffic-Monitor
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest -t ${{ secrets.DOCKER_USERNAME }}/packet-monitor:${{ github.sha }} .
+      - name: Push image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:${{ github.sha }}
