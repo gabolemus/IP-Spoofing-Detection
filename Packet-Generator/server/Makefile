@@ -17,20 +17,5 @@ run:
 clean:
 	cargo clean
 
-compose-up:
-	docker compose up -d
-
-compose-down:
-	docker compose down && rm -rf ./tcpdump
-
-compose-start:
-	docker compose start
-
-compose-stop:
-	docker compose stop && rm -rf ./tcpdump
-
-compose-recreate:
-	docker compose down && docker image prune -a -f && docker compose up -d
-
 help:
-	@echo "make <build-dbg|run-dbg|build|run|clean|compose-up|compose-down|help>"
+	@echo "make <build-dbg|run-dbg|build|run|clean|help>"

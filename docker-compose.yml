@@ -1,5 +1,5 @@
 version: '3.9'
-name: 'traffic-generator'
+name: 'ip-spoofing-detector'
 
 services:
   packet-generator:
@@ -10,10 +10,10 @@ services:
 
   tcpdump:
     image: kaazing/tcpdump
-    container_name: tcpdump
+    container_name: traffic-capture
     network_mode: "host"
     volumes:
-      - ${PWD}/tcpdump:/tcpdump
+      - ./tcpdump:/tcpdump
     command: -i any -w /tcpdump/network-traffic.pcap
     depends_on:
       - packet-generator
