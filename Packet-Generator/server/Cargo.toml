@@ -12,5 +12,6 @@ actix-web = "^4" # To create the web server
 ctrlc = { version = "^3", features = ["termination"] } # To handle Ctrl+C to stop the server gracefully
 dotenv = "^0.15" # To load the environment variables
 env_logger = "^0.9" # To log the data
+local_ipaddress = "^0.1" # To get the local IP address
 serde = { version = "^1", features = ["derive"] } # To serialize and deserialize the data
 socket2 = { version = "^0.4", features = ["all"] } # To create the raw socket
