@@ -1,2 +1,5 @@
 # VS Code config
 .vscode/
+
+# Network traffic dumps
+tcpdump/
