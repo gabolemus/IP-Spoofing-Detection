@@ -20,6 +20,7 @@ impl TCPIPv4Packet {
         data: Option<Vec<u8>>,
         options: Option<Vec<u8>>,
         port: u16,
+        is_spoofed: bool,
     ) -> TCPIPv4Packet {
         // IPv4 Packet
         let mut ipv4_packet = IPv4Packet::new(
@@ -28,17 +29,18 @@ impl TCPIPv4Packet {
             None,
             None,
             None,
-            64,
+            if rand::random() { 64 } else { 128 }, // Simulate common Linux TTL (64) and Windows TTL (128)
             source_ip,
             destination_ip,
             None,
             None,
+            is_spoofed,
         );
 
         // TCP Packet
         let mut tcp_packet = TCPPacket::new(
             Some(port),
-            Some(port),
+            Some(if rand::random() { 80 } else { 443 }), // Choose either 80 (HTTP) or 443 (HTTPS) as the destination port randomly
             None,
             None,
             None,

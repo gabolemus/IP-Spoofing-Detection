@@ -17,6 +17,7 @@ pub const PORT: &str = "8080";
 pub const DUMMY_MESSAGE: &str = "Este es un paquete spoofeado";
 pub static mut STOP_INFINITE_PACKETS: bool = false;
 pub static mut SENDING_INFINITE_PACKETS: bool = false;
+pub static mut THREAD_COUNT: u32 = 0;
 
 /// Route that shows the index page.
 #[get("/")]
@@ -43,6 +44,10 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
         if !SENDING_INFINITE_PACKETS {
             let source_ip = ip_to_string(&params.source_ip, &get_local_ip("127.0.0.1"));
             let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
+            let spoof_packet = match params.set_evil_bit {
+                Some(set_evil_bit) => set_evil_bit,
+                None => true,
+            };
 
             println!("Paquete único: {} --> {}", source_ip, destination_ip);
 
@@ -53,7 +58,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
             };
 
             // Attempt to send the packet and handle the error if it occurs
-            match send_single_packet(params) {
+            match send_single_packet(params, spoof_packet) {
                 Ok(_) => HttpResponse::Ok()
                     .content_type(ContentType::json())
                     .json(response),
@@ -115,14 +120,24 @@ pub async fn multiple_requests(
             })
     } else {
         unsafe {
-            if !SENDING_INFINITE_PACKETS {
-                let infinite_packets_requested = match params.packet_count {
+            if !SENDING_INFINITE_PACKETS && THREAD_COUNT < 10 {
+                STOP_INFINITE_PACKETS = false;
+                SENDING_INFINITE_PACKETS = match params.packet_count {
                     Some(count) => count == -1,
                     None => false,
                 };
 
-                STOP_INFINITE_PACKETS = false;
-                SENDING_INFINITE_PACKETS = infinite_packets_requested;
+                let spoof_packet = match &params.packet_data {
+                    Some(packet_data) => match packet_data.set_evil_bit {
+                        Some(set_evil_bit) => set_evil_bit,
+                        None => true,
+                    },
+                    None => true,
+                };
+                let randomize_source_ip = match &params.random_source_ip {
+                    Some(randomize_source_ip) => *randomize_source_ip,
+                    None => false,
+                };
 
                 let packet_count_msg = match params.packet_count {
                     Some(-1) => "Enviando una cantidad indefinida de paquetes...".to_string(),
@@ -145,7 +160,15 @@ pub async fn multiple_requests(
                     packet_count,
                 };
 
-                match send_multiple_packets(packet_data, packet_count, params.wait_time).await {
+                match send_multiple_packets(
+                    packet_data,
+                    packet_count,
+                    params.wait_time,
+                    spoof_packet,
+                    randomize_source_ip,
+                )
+                .await
+                {
                     Ok(_) => HttpResponse::Ok()
                         .content_type(ContentType::json())
                         .json(response),
@@ -179,7 +202,7 @@ pub async fn multiple_requests(
                 HttpResponse::Ok()
                 .content_type(ContentType::json())
                 .json(GenericResponse {
-                    message: format!("No es posible enviar múltiples paquetes mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", API_IP_ADDRESS, PORT),
+                    message: format!("No es posible enviar múltiples paquetes mientras se están enviando paquetes actualmente. Puede detener el envío de paquetes enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", API_IP_ADDRESS, PORT),
                 })
             }
         }
