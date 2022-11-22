@@ -38,6 +38,27 @@ pub struct Config {
     pub wait_time: Option<u64>,
 }
 
+/// Config struct implementations.
+impl Config {
+    /// Change the source IP address.
+    pub fn set_source_ip(&mut self, source_ip: IpAddr) {
+        self.source_ip = source_ip;
+    }
+
+    /// Clone the config struct.
+    pub fn clone(&self) -> Config {
+        Config {
+            source_ip: self.source_ip,
+            destination_ip: self.destination_ip,
+            ip_version: self.ip_version,
+            port: self.port,
+            packet_count: self.packet_count,
+            data: self.data.clone(),
+            wait_time: self.wait_time,
+        }
+    }
+}
+
 #[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct SingleRequestParams {
     #[serde(rename = "sourceIP")]
@@ -151,10 +172,10 @@ pub fn send_single_packet(
     spoof_packet: bool,
 ) -> Result<&'static str, Box<dyn Error>> {
     // Parse the arguments
-    let config = parse_single_req_params(params);
+    let mut config = parse_single_req_params(params);
 
     // Create the packet
-    let packet = create_packet(&config, spoof_packet, false);
+    let packet = create_packet(&mut config, spoof_packet, false);
 
     // Send the packet
     send_packet(&config, &packet)
@@ -240,18 +261,18 @@ fn parse_multiple_req_params(
 }
 
 /// Create the TCP/IP packet
-fn create_packet(config: &Config, spoof_packet: bool, randomize_source_ip: bool) -> Vec<u8> {
+fn create_packet(config: &mut Config, spoof_packet: bool, randomize_source_ip: bool) -> Vec<u8> {
     // println!("Source IP address: {}", config.source_ip);
     // println!("Destination IP address: {}", config.destination_ip);
 
     if config.ip_version == 4 {
+        if randomize_source_ip {
+            config.set_source_ip(get_random_ip(4));
+        }
+
         // Create the TCP/IP v4 packet
         let packet = TCPIPv4Packet::new(
-            get_ipv4_addr(if randomize_source_ip {
-                get_random_ip_addr(4)
-            } else {
-                config.source_ip
-            }),
+            get_ipv4_addr(config.source_ip),
             get_ipv4_addr(config.destination_ip),
             Some(config.data.clone()), // Payload to be sent
             // None, // Send no payload
@@ -266,13 +287,13 @@ fn create_packet(config: &Config, spoof_packet: bool, randomize_source_ip: bool)
         // Return the packet
         packet.raw
     } else {
+        if randomize_source_ip {
+            config.set_source_ip(get_random_ip(6));
+        }
+
         // Create the TCP/IP v6 packet
         let packet = TCPIPv6Packet::new(
-            get_ipv6_addr(if randomize_source_ip {
-                get_random_ip_addr(6)
-            } else {
-                config.source_ip
-            }),
+            get_ipv6_addr(config.source_ip),
             get_ipv6_addr(config.destination_ip),
             Some(config.data.clone()), // Payload to be sent
             // None, // Send no payload
@@ -289,7 +310,7 @@ fn create_packet(config: &Config, spoof_packet: bool, randomize_source_ip: bool)
 }
 
 /// Generate a random IP address.
-fn get_random_ip_addr(version: u8) -> IpAddr {
+fn get_random_ip(version: u8) -> IpAddr {
     let mut rng = rand::thread_rng();
 
     // Return a random IPv4 address if the version is 4
@@ -371,13 +392,13 @@ fn send_multiple_packets_thread(
                 i = i + 1;
 
                 // Create and send the packet
-                create_and_send_packet(&config, i, spoof_packet, randomize_source_ip);
+                create_and_send_packet(config.clone(), i, spoof_packet, randomize_source_ip);
             }
         } else {
             // Send the specified number of packets
             for count in 1..packet_count + 1 {
                 // Create and send the packet
-                create_and_send_packet(&config, count, spoof_packet, randomize_source_ip);
+                create_and_send_packet(config.clone(), count, spoof_packet, randomize_source_ip);
             }
 
             println!("{} paquetes han sido enviados.", packet_count);
@@ -387,14 +408,15 @@ fn send_multiple_packets_thread(
 
 /// Create and send packet with the provided configuration
 fn create_and_send_packet(
-    config: &Config,
+    config: Config,
     packet_number: i32,
     spoof_packet: bool,
     randomize_source_ip: bool,
 ) {
+    let mut temp_config = config.clone();
+
     // Create the packet
-    let packet = create_packet(&config, spoof_packet, randomize_source_ip);
-    // Todo: fix the previous line; also, add an option to randomize the spoofed addresses when sending multiple packets
+    let packet = create_packet(&mut temp_config, spoof_packet, randomize_source_ip);
 
     // Send the packet
     send_packet(&config, &packet).unwrap();
@@ -402,7 +424,7 @@ fn create_and_send_packet(
     // Print packet info
     println!(
         "Paquete #{}: {} --> {}",
-        packet_number, config.source_ip, config.destination_ip
+        packet_number, temp_config.source_ip, temp_config.destination_ip
     );
 
     // Wait the specified time
