@@ -3,7 +3,7 @@ use crate::{
     api::{ErrorResponse, GeneralResponse, GenericResponse, SpoofingResponse},
     model::{
         ip_to_string,
-        networking::socket::SocketError,
+        networking::{get_local_ip, socket::SocketError},
         utils::{send_multiple_packets, MultipleRequestParams, SingleRequestParams},
     },
     send_single_packet,
@@ -11,10 +11,10 @@ use crate::{
 use actix_web::{get, http::header::ContentType, post, web, HttpResponse, Responder};
 
 // Declare the ip address and port globally
-pub const SOURCE_IP_ADDRESS: &str = "0.0.0.0";
+pub const API_IP_ADDRESS: &str = "0.0.0.0";
 pub const DESTINATION_IP_ADDRESS: &str = "8.8.8.8";
 pub const PORT: &str = "8080";
-pub const DUMMY_MESSAGE: &str = "¡Este es un paquete spoofeado!";
+pub const DUMMY_MESSAGE: &str = "Este es un paquete spoofeado";
 pub static mut STOP_INFINITE_PACKETS: bool = false;
 pub static mut SENDING_INFINITE_PACKETS: bool = false;
 
@@ -26,8 +26,8 @@ pub async fn index() -> impl Responder {
     // Show a welcome message and return the links to the single and multiple request pages.
     let response = GeneralResponse {
         message: "¡Bienvenido a la API de spoofing de paquetes!".to_string(),
-        single_request_page: format!("http://{}:{}/single", SOURCE_IP_ADDRESS, PORT),
-        multiple_request_page: format!("http://{}:{}/multiple", SOURCE_IP_ADDRESS, PORT),
+        single_request_page: format!("http://{}:{}/single", API_IP_ADDRESS, PORT),
+        multiple_request_page: format!("http://{}:{}/multiple", API_IP_ADDRESS, PORT),
     };
 
     HttpResponse::Ok()
@@ -41,7 +41,7 @@ pub async fn index() -> impl Responder {
 pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
     unsafe {
         if !SENDING_INFINITE_PACKETS {
-            let source_ip = ip_to_string(&params.source_ip, "127.0.0.1");
+            let source_ip = ip_to_string(&params.source_ip, &get_local_ip("127.0.0.1"));
             let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
 
             println!("Paquete único: {} --> {}", source_ip, destination_ip);
@@ -87,7 +87,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
             HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(GenericResponse {
-                message: format!("No es posible enviar un paquete único mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+                message: format!("No es posible enviar un paquete único mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", API_IP_ADDRESS, PORT),
             })
         }
     }
@@ -179,7 +179,7 @@ pub async fn multiple_requests(
                 HttpResponse::Ok()
                 .content_type(ContentType::json())
                 .json(GenericResponse {
-                    message: format!("No es posible enviar múltiples paquetes mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+                    message: format!("No es posible enviar múltiples paquetes mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", API_IP_ADDRESS, PORT),
                 })
             }
         }
