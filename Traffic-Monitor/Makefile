@@ -1,4 +1,4 @@
-program := packet-generator
+program := traffic-monitor
 
 build-dbg:
 	cargo build
