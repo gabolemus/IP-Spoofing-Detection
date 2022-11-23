@@ -7,4 +7,4 @@ VOLUME [ "/tcpdump" ]
 
 ENTRYPOINT [ "/usr/bin/tcpdump" ]
 
-CMD [ "-C", "1000", "-v", "-i", "any", "-w", "/tcpdump/tcpdump.pcap" ]
+CMD [ "-C", "1000", "-v", "-i", "any", "-w", "/tcpdump/tcpdump.pcapng" ]
