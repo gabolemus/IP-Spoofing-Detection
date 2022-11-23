@@ -1,13 +1,21 @@
 use std::fs::File;
 use std::io::Write;
 
+use ip_traffic_monitor::Packet;
+
 fn main() {
+    let mut pcap_packets: Vec<Packet> = Vec::new();
+
+    // Todo: improve the way the Wireshark/TShark packet fields are captured to occupy less space.
+    // Maybe use a HashMap instead of a struct for each layer.
+
     // Create a file to write the data to
-    let mut file = File::create("network-traffic.csv").unwrap();
+    let mut txt_file = File::create("network-traffic.txt").unwrap();
+    let mut csv_file = File::create("network-traffic.csv").unwrap();
 
     // Creates a builder with needed tshark parameters
     let builder =
-        rtshark::RTSharkBuilder::builder().input_path("./network-traffic.pcap");
+        rtshark::RTSharkBuilder::builder().input_path("/home/gabo/Downloads/network-traffic.pcap");
 
     // Start a new tshark process
     let mut rtshark = builder
@@ -22,18 +30,21 @@ fn main() {
         eprintln!("Error parsing tshark output: {e}");
         None
     }) {
+        let mut new_packet = Packet::new();
+
         // If this is not the first packet, check that the last line in the file
         // is a new line. If it's not, write a new line
         if !is_first_packet {
             // Write a new line
-            file.write_all("\n".as_bytes()).unwrap();
+            txt_file.write_all("\n".as_bytes()).unwrap();
         }
 
         if packet.layer_count() > 0 {
             println!("Packet #{} analyzed", i);
         }
 
-        file.write_all(format!("Packet #{}\n", i).as_bytes())
+        txt_file
+            .write_all(format!("Packet #{}\n", i).as_bytes())
             .unwrap();
         i += 1;
         is_first_packet = false;
@@ -41,29 +52,51 @@ fn main() {
         for layer in packet {
             for metadata in layer {
                 if metadata.name() == "tcp.payload" {
-                    // Write the data to the file
-                    file.write_all(
-                        format!(
-                            "{}: {}\n",
-                            metadata.name(),
-                            remove_new_lines(hex_to_string(metadata.value().trim()).as_str())
+                    // Write the data to the text file
+                    txt_file
+                        .write_all(
+                            format!(
+                                "{}: {}\n",
+                                metadata.name(),
+                                remove_new_lines(hex_to_string(metadata.value().trim()).as_str())
+                            )
+                            .as_bytes(),
                         )
-                        .as_bytes(),
-                    )
-                    .unwrap();
+                        .unwrap();
+
+                    // Add the data to the packet
+                    new_packet.add_metadata(metadata.name(), metadata.value());
                 } else {
-                    // Write the data to the file
-                    file.write_all(
-                        format!(
-                            "{}: {}\n",
-                            metadata.name(),
-                            remove_new_lines(metadata.value().trim())
+                    // Write the data to the text file
+                    txt_file
+                        .write_all(
+                            format!(
+                                "{}: {}\n",
+                                metadata.name(),
+                                remove_new_lines(metadata.value().trim())
+                            )
+                            .as_bytes(),
                         )
-                        .as_bytes(),
-                    )
-                    .unwrap();
+                        .unwrap();
+
+                    // Add the data to the packet
+                    new_packet.add_metadata(metadata.name(), metadata.value());
                 }
             }
+        }
+
+        pcap_packets.push(new_packet);
+
+        // Write the header to the CSV file
+        csv_file
+            .write_all(format!("{}\n", pcap_packets[0].get_csv_header()).as_bytes())
+            .unwrap();
+
+        // Write the data to the CSV file
+        for packet in &pcap_packets {
+            csv_file
+                .write_all(format!("{}\n", packet.get_csv_data()).as_bytes())
+                .unwrap();
         }
     }
 }
