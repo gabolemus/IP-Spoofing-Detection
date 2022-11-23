@@ -1,121 +1,131 @@
-use crate::{Frame, HTTP, IP, SLL, TCP};
+/// This file contains the struct and its implementations for a PCAP packet.
+use std::collections::HashMap;
 
 /// Struct that represents a pcap packet
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Packet {
-    pub layers: Vec<Layer>,
+    /// Wether the packet is spoofed, for the test data, the packets with the
+    /// field "ip.flags.rb" (reserved bit) set to 1 are spoofed.
+    ///
+    /// This does not reflect reality, as this field is not used in real
+    /// applications, but will be used for the test data.
     pub is_spoofed: bool,
-}
-
-/// Enum that represents the different types of layers
-///
-/// Not all the layers are considerd, only the ones that are needed for the
-/// training of the NN model
-#[derive(Debug)]
-pub enum Layer {
-    Frame(Frame),
-    SLL(SLL),
-    IP(IP),
-    TCP(TCP),
-    HTTP(HTTP),
+    /// Hashmap that contains the metadata of the packet
+    pub metadata: HashMap<String, String>,
+    /// The fields of the packet.
+    ///
+    /// Not all the packets will have the same fields, so they are stored in a
+    /// vector and when the CSV file is created, the packets with missing fields
+    /// will have an empty string ("") in these fields.
+    pub fields: Vec<String>,
 }
 
 /// Packet implementation
 impl Packet {
     /// Create a new empty packet
     pub fn new() -> Self {
-        let pkt_frame = Frame::new();
-        let pkt_sll = SLL::new();
-        let pkt_ip = IP::new();
-        let pkt_tcp = TCP::new();
-        let pkt_http = HTTP::new();
-
         Self {
-            layers: vec![
-                Layer::Frame(pkt_frame),
-                Layer::SLL(pkt_sll),
-                Layer::IP(pkt_ip),
-                Layer::TCP(pkt_tcp),
-                Layer::HTTP(pkt_http),
-            ],
             is_spoofed: false,
+            metadata: HashMap::new(),
+            fields: Vec::new(),
         }
+    }
+
+    /// Set the vector of fields for the packet
+    pub fn set_fields(&mut self, fields: Vec<String>) {
+        self.fields = fields;
     }
 
     /// Add a new metadata value to the corresponding layer
     pub fn add_metadata(&mut self, metadata_name: &str, metadata_value: &str) {
-        // Layer data mapping:
-        // "frame" -> Frame
-        // "sll" -> SLL
-        // "ip" -> IP
-        // "tcp" || "mptcp" -> TCP
-        // "http" || "data" -> HTTP
-        match metadata_name.split('.').next().unwrap() {
-            "frame" => {
-                if let Layer::Frame(frame) = &mut self.layers[0] {
-                    frame.update(metadata_name, metadata_value);
-                }
-            }
-
-            "sll" => {
-                if let Layer::SLL(sll) = &mut self.layers[1] {
-                    sll.update(metadata_name, metadata_value);
-                }
-            }
-
-            "ip" => {
-                if let Layer::IP(ip) = &mut self.layers[2] {
-                    ip.update(metadata_name, metadata_value);
-                }
-            }
-
-            "tcp" | "mptcp" => {
-                if let Layer::TCP(tcp) = &mut self.layers[3] {
-                    tcp.update(metadata_name, metadata_value);
-                }
-            }
-
-            "http" | "data" => {
-                if let Layer::HTTP(http) = &mut self.layers[4] {
-                    http.update(metadata_name, metadata_value);
-                }
-            }
-
-            _ => (),
+        // If the "ip.flags.rb" field is set to 1, set the "is_spoofed" field to
+        // true
+        if metadata_name == "ip.flags.rb" && metadata_value == "1" {
+            self.is_spoofed = true;
         }
+
+        // If the field is "tcp.payload", remove the new lines and convert the
+        // hex field to a string
+        if metadata_name == "tcp.payload" {
+            self.metadata.insert(
+                metadata_name.to_string(),
+                remove_new_lines(hex_to_string(metadata_value).as_str()),
+            );
+        } else {
+            self.metadata
+                .insert(metadata_name.to_string(), remove_new_lines(metadata_value));
+        }
+
+        // Add the field name to the corresponding vector and insert the key-
+        // value pair in the hashmap
+        self.fields.push(metadata_name.to_string());
     }
 
     /// Get CSV header
     pub fn get_csv_header(&self) -> String {
-        let mut header = "is_spoofed,".to_string();
+        // Initialize a string with the "frame.number" and "is_spoofed" field
+        let mut header = "frame.number|is_spoofed|".to_string();
 
-        for layer in &self.layers {
-            match layer {
-                Layer::Frame(frame) => header.push_str(&frame.get_csv_header(",")),
-                Layer::SLL(sll) => header.push_str(&sll.get_csv_header(",")),
-                Layer::IP(ip) => header.push_str(&ip.get_csv_header(",")),
-                Layer::TCP(tcp) => header.push_str(&tcp.get_csv_header(",")),
-                Layer::HTTP(http) => header.push_str(&http.get_csv_header(",")),
+        // Add the rest of the fields; exclude the "frame.number" field
+        for field in &self.fields {
+            if field != "frame.number" {
+                header.push_str(format!("{}|", field).as_str());
             }
         }
 
+        // Print the count of the fields
+        println!("Fields: {}", self.fields.len());
+
+        // Remove the last comma and return the header
+        header.pop();
         header
     }
 
     /// Get CSV data
     pub fn get_csv_data(&self) -> String {
-        let mut data = format!("{},", self.is_spoofed);
+        // Initialize a string with the "frame.number" and "is_spoofed" field
+        let mut data = format!("{}|{}|", self.metadata["frame.number"], self.is_spoofed);
 
-        for layer in &self.layers {
-            match layer {
-                Layer::Frame(frame) => data.push_str(&frame.get_csv_data(",")),
-                Layer::SLL(sll) => data.push_str(&sll.get_csv_data(",")),
-                Layer::IP(ip) => data.push_str(&ip.get_csv_data(",")),
-                Layer::TCP(tcp) => data.push_str(&tcp.get_csv_data(",")),
-                Layer::HTTP(http) => data.push_str(&http.get_csv_data(",")),
+        // Add the rest of the fields
+        for field in &self.fields {
+            // If the field is not in the packet, add an empty string.
+            // Exclude the "frame.number" field
+
+            if self.metadata.contains_key(field) && !field.contains("frame.number") {
+                data.push_str(format!("{}|", self.metadata[field]).as_str());
+            } else if !field.contains("frame.number") {
+                data.push_str("|");
             }
         }
 
+        // Remove the last comma and return the data
+        data.pop();
         data
-    }    
+    }
+}
+
+/// Convert Hex string to unicode string
+/// For example: 22:73:74:61:74:75:73:22:3a:22:73:74:61:72:74:22 -> "status":"start"
+/// Skip the colon
+fn hex_to_string(hex: &str) -> String {
+    let mut result = String::new();
+    let mut hex = hex.to_string();
+
+    hex.retain(|c| c != ':');
+
+    for i in (0..hex.len()).step_by(2) {
+        let byte = u8::from_str_radix(&hex[i..i + 2], 16).unwrap();
+
+        result.push(byte as char);
+    }
+
+    result
+}
+
+/// Remove new line characters from a string
+fn remove_new_lines(string: &str) -> String {
+    string
+        .replace("\r", "")
+        .replace("\n", "")
+        .replace("\r\n", "")
 }
