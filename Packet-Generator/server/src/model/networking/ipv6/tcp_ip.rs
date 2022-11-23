@@ -28,7 +28,7 @@ impl TCPIPv6Packet {
         // TCP Packet
         let mut tcp_packet = TCPPacket::new(
             Some(port),
-            Some(port),
+            Some(if rand::random() { 80 } else { 443 }), // Choose either 80 (HTTP) or 443 (HTTPS) as the destination port randomly
             None,
             None,
             None,

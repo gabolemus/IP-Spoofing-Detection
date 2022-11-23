@@ -1,0 +1,33 @@
+name: Open Pull Request to Main
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  pull-request-to-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: main
+      - name: Reset main to dev
+        run: |
+          git fetch origin dev
+          git reset --hard origin/dev
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v3
+        with:
+          branch: temp
+          delete-branch: true
+          base: main
+          commit-message: Update main
+          title: Add changes from dev
+          body: |
+            Automatic PR to update main after changes from dev
+
+            The commit hash is: _${{ github.sha }}_.
+          labels: |
+            automated pr

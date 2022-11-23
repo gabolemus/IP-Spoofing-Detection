@@ -32,6 +32,9 @@ pub struct IPv4Header {
     pub destination_address: Ipv4Addr,
     /// Options.
     pub options: Option<Vec<u8>>,
+    /// Is spoofed. If so, set the 'evil' bit to 1 to easily identify spoofed packets.
+    /// This is not a standard feature, but will be used in the training of the NN.
+    pub is_spoofed: bool,
 }
 
 /// IPv4 packet structure.
@@ -62,6 +65,7 @@ impl IPv4Header {
         source_ip: Ipv4Addr,
         destination_ip: Ipv4Addr,
         options: Option<Vec<u8>>,
+        is_spoofed: bool,
     ) -> Self {
         IPv4Header {
             version,
@@ -78,6 +82,7 @@ impl IPv4Header {
             source_address: source_ip,
             destination_address: destination_ip,
             options,
+            is_spoofed,
         }
     }
 }
@@ -96,23 +101,25 @@ impl IPv4Packet {
         destination_ip: Ipv4Addr,
         options: Option<Vec<u8>>,
         data: Option<Vec<u8>>,
+        is_spoofed: bool,
     ) -> Self {
         // Save the header values
         let mut header = IPv4Header::new(
-            4,                                // Always 4 for IPv4
-            5,                                // Default 5
-            dscp.unwrap_or(0),                // Default 0
-            ecn.unwrap_or(0),                 // Default 0
-            0,                                // Will be calculated later
-            identification.unwrap_or(0xabcd), // Default 0xabcd
-            flags.unwrap_or(0),               // Default 0
-            fragment_offset.unwrap_or(0),     // Default 0
-            ttl,                              // Commonly 64; provided by the user
-            6,                                // 6 for TCP (as it's the downstream layer)
-            0,                                // Will be calculated later
-            source_ip,                        // Provided by the user
-            destination_ip,                   // Provided by the user
-            options,                          // Optionally provided by the user
+            4,                                   // Always 4 for IPv4
+            5,                                   // Default 5
+            dscp.unwrap_or(0),                   // Default 0
+            ecn.unwrap_or(0),                    // Default 0
+            0,                                   // Will be calculated later
+            identification.unwrap_or(0xabcd),    // Default 0xabcd
+            get_packet_flags(flags, is_spoofed), // Default 0
+            fragment_offset.unwrap_or(0),        // Default 0
+            ttl,                                 // Commonly 64; provided by the user
+            6,                                   // 6 for TCP (as it's the downstream layer)
+            0,                                   // Will be calculated later
+            source_ip,                           // Provided by the user
+            destination_ip,                      // Provided by the user
+            options,                             // Optionally provided by the user
+            is_spoofed,                          // Provided by the user
         );
 
         // Create the raw IPv4 packet
@@ -275,6 +282,7 @@ impl IPv4Packet {
             self.header.destination_address,
             self.header.options.clone(),
             self.data.clone(),
+            self.header.is_spoofed,
         );
 
         // Set the header checksum
@@ -298,5 +306,24 @@ impl IPv4Packet {
                 println!();
             }
         }
+    }
+}
+
+/// Get the packet flags provided by the user or return the default flags.
+/// Also, set the 'evil' bit if spoofed parameter is true.
+fn get_packet_flags(flags: Option<u8>, is_spoofed: bool) -> u8 {
+    // Get the flags provided by the user or return the default flags
+    let flags = match flags {
+        Some(flags) => flags,
+        None => 0b0000_0000,
+    };
+
+    // Set the 'evil' bit if spoofed parameter is true
+    if is_spoofed {
+        // println!("Flags with evil bit set: {:08b}", flags | 0b0000_0100);
+        flags | 0b0000_0100
+    } else {
+        // println!("Flags without evil bit set: {:08b}", flags);
+        flags
     }
 }

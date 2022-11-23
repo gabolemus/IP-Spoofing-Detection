@@ -1,21 +1,28 @@
 use actix_web::{App, HttpServer};
-use ip_traffic_generator::{index, multiple_requests, single_request, PORT, SOURCE_IP_ADDRESS};
+use ip_traffic_generator::{
+    api::{multiple_legitimate_requests, single_legitimate_request},
+    index, multiple_requests, single_request, API_IP_ADDRESS, PORT,
+};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Iniciando el servidor en http://{}:{}", SOURCE_IP_ADDRESS, PORT);
+    println!(
+        "Iniciando el servidor en http://{}:{}",
+        API_IP_ADDRESS, PORT
+    );
 
-    // Todo: create a thread to generate simulated genuine packets
+    // Todo: create a thread to generate simulated legitimate packets
     // Todo: refactor API routes code
-    // Todo: randomize spoofed source IP address
 
     HttpServer::new(|| {
         App::new()
             .service(index)
             .service(single_request)
             .service(multiple_requests)
+            .service(single_legitimate_request)
+            .service(multiple_legitimate_requests)
     })
-    .bind(format!("{}:{}", SOURCE_IP_ADDRESS, PORT))?
+    .bind(format!("{}:{}", API_IP_ADDRESS, PORT))?
     .run()
     .await
 }

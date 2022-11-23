@@ -16,12 +16,18 @@ pub struct SpoofingResponse {
 pub struct GeneralResponse {
     /// General informational message.
     pub message: String,
-    /// URL for the single request page.
-    #[serde(rename = "singleRequestPage")]
-    pub single_request_page: String,
-    /// URL for the multiple request page.
-    #[serde(rename = "multipleRequestPage")]
-    pub multiple_request_page: String,
+    /// URL for the single spoofed packet page.
+    #[serde(rename = "singleSpoofedRequestPage")]
+    pub single_spoofed_request_page: String,
+    /// URL for the multiple spoofed packets page.
+    #[serde(rename = "multipleSpoofedRequestPage")]
+    pub multiple_spoofed_request_page: String,
+    /// URL for the single legitimate packet page.
+    #[serde(rename = "singleLegitimateRequestPage")]
+    pub single_legitimate_request_page: String,
+    /// URL for the multiple legitimate packets page.
+    #[serde(rename = "multipleLegitimateRequestPage")]
+    pub multiple_legitimate_request_page: String,
 }
 
 /// Generic response sent by the API to provide information.

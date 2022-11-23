@@ -3,20 +3,24 @@ use crate::{
     api::{ErrorResponse, GeneralResponse, GenericResponse, SpoofingResponse},
     model::{
         ip_to_string,
-        networking::socket::SocketError,
-        utils::{send_multiple_packets, MultipleRequestParams, SingleRequestParams},
+        networking::{get_local_ip, socket::SocketError},
+        utils::{
+            send_multiple_packets, send_single_legitimate_packet, MultipleRequestParams,
+            SingleRequestParams,
+        },
     },
     send_single_packet,
 };
 use actix_web::{get, http::header::ContentType, post, web, HttpResponse, Responder};
 
 // Declare the ip address and port globally
-pub const SOURCE_IP_ADDRESS: &str = "0.0.0.0";
+pub const API_IP_ADDRESS: &str = "0.0.0.0";
 pub const DESTINATION_IP_ADDRESS: &str = "8.8.8.8";
 pub const PORT: &str = "8080";
-pub const DUMMY_MESSAGE: &str = "¡Este es un paquete spoofeado!";
+pub const DUMMY_MESSAGE: &str = "Este es un paquete spoofeado";
 pub static mut STOP_INFINITE_PACKETS: bool = false;
 pub static mut SENDING_INFINITE_PACKETS: bool = false;
+pub static mut THREAD_COUNT: u32 = 0;
 
 /// Route that shows the index page.
 #[get("/")]
@@ -26,8 +30,19 @@ pub async fn index() -> impl Responder {
     // Show a welcome message and return the links to the single and multiple request pages.
     let response = GeneralResponse {
         message: "¡Bienvenido a la API de spoofing de paquetes!".to_string(),
-        single_request_page: format!("http://{}:{}/single", SOURCE_IP_ADDRESS, PORT),
-        multiple_request_page: format!("http://{}:{}/multiple", SOURCE_IP_ADDRESS, PORT),
+        single_spoofed_request_page: format!("http://{}:{}/single-spoofed", API_IP_ADDRESS, PORT),
+        multiple_spoofed_request_page: format!(
+            "http://{}:{}/multiple-spoofed",
+            API_IP_ADDRESS, PORT
+        ),
+        single_legitimate_request_page: format!(
+            "http://{}:{}/single-legitimate",
+            API_IP_ADDRESS, PORT
+        ),
+        multiple_legitimate_request_page: format!(
+            "http://{}:{}/multiple-legitimate",
+            API_IP_ADDRESS, PORT
+        ),
     };
 
     HttpResponse::Ok()
@@ -35,16 +50,20 @@ pub async fn index() -> impl Responder {
         .json(response)
 }
 
-/// Route that generates a single spoofed or genuine packet.
-#[post("/single")]
+/// Route that generates a single spoofed packet.
+#[post("/single-spoofed")]
 // Get the body parameters and send a single spoofed or legitimate packet
 pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Responder {
     unsafe {
         if !SENDING_INFINITE_PACKETS {
-            let source_ip = ip_to_string(&params.source_ip, "127.0.0.1");
+            let source_ip = ip_to_string(&params.source_ip, &get_local_ip("127.0.0.1"));
             let destination_ip = ip_to_string(&params.destination_ip, "8.8.8.8");
+            let spoof_packet = match params.set_evil_bit {
+                Some(set_evil_bit) => set_evil_bit,
+                None => true,
+            };
 
-            println!("Paquete único: {} --> {}", source_ip, destination_ip);
+            println!("Paquete único spoofeado: {} --> {}", source_ip, destination_ip);
 
             // Construct the response
             let response = SpoofingResponse {
@@ -53,7 +72,7 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
             };
 
             // Attempt to send the packet and handle the error if it occurs
-            match send_single_packet(params) {
+            match send_single_packet(params, spoof_packet) {
                 Ok(_) => HttpResponse::Ok()
                     .content_type(ContentType::json())
                     .json(response),
@@ -87,14 +106,14 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
             HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(GenericResponse {
-                message: format!("No es posible enviar un paquete único mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+                message: format!("No es posible enviar un paquete único mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple-spoofed/stop si así lo desea.", API_IP_ADDRESS, PORT),
             })
         }
     }
 }
 
-/// Route that generates multiple spoofed or genuine packets.
-#[post("/multiple/{stop}")]
+/// Route that generates multiple spoofed packets.
+#[post("/multiple-spoofed/{stop}")]
 pub async fn multiple_requests(
     params: web::Json<MultipleRequestParams>,
     path: web::Path<String>,
@@ -115,14 +134,24 @@ pub async fn multiple_requests(
             })
     } else {
         unsafe {
-            if !SENDING_INFINITE_PACKETS {
-                let infinite_packets_requested = match params.packet_count {
+            if !SENDING_INFINITE_PACKETS && THREAD_COUNT < 10 {
+                STOP_INFINITE_PACKETS = false;
+                SENDING_INFINITE_PACKETS = match params.packet_count {
                     Some(count) => count == -1,
                     None => false,
                 };
 
-                STOP_INFINITE_PACKETS = false;
-                SENDING_INFINITE_PACKETS = infinite_packets_requested;
+                let spoof_packet = match &params.packet_data {
+                    Some(packet_data) => match packet_data.set_evil_bit {
+                        Some(set_evil_bit) => set_evil_bit,
+                        None => true,
+                    },
+                    None => true,
+                };
+                let randomize_source_ip = match &params.random_source_ip {
+                    Some(randomize_source_ip) => *randomize_source_ip,
+                    None => false,
+                };
 
                 let packet_count_msg = match params.packet_count {
                     Some(-1) => "Enviando una cantidad indefinida de paquetes...".to_string(),
@@ -145,7 +174,15 @@ pub async fn multiple_requests(
                     packet_count,
                 };
 
-                match send_multiple_packets(packet_data, packet_count, params.wait_time).await {
+                match send_multiple_packets(
+                    packet_data,
+                    packet_count,
+                    params.wait_time,
+                    spoof_packet,
+                    randomize_source_ip,
+                )
+                .await
+                {
                     Ok(_) => HttpResponse::Ok()
                         .content_type(ContentType::json())
                         .json(response),
@@ -179,9 +216,44 @@ pub async fn multiple_requests(
                 HttpResponse::Ok()
                 .content_type(ContentType::json())
                 .json(GenericResponse {
-                    message: format!("No es posible enviar múltiples paquetes mientras se envían paquetes infinitos. Por favor, detenga la generación de paquetes infinitos enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", SOURCE_IP_ADDRESS, PORT),
+                    message: format!("No es posible enviar múltiples paquetes mientras se están enviando paquetes actualmente. Puede detener el envío de paquetes enviando una solicitud POST a la ruta http://{}:{}/multiple/stop si así lo desea.", API_IP_ADDRESS, PORT),
                 })
             }
         }
+    }
+}
+
+/// Route that generates legitimate packets.
+#[post("/single-legitimate")]
+pub async fn single_legitimate_request() -> impl Responder {
+    match send_single_legitimate_packet(None, false) {
+        Some(_) => HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(GenericResponse {
+                message: "Un paquete legítimo ha sido enviado.".to_string(),
+            }),
+        None => HttpResponse::InternalServerError()
+            .content_type(ContentType::json())
+            .json(ErrorResponse {
+                error: format!("Error al enviar el paquete legítimo."),
+            }),
+    }
+}
+
+/// Route that generates multiple legitimate packets.
+#[post("/multiple-legitimate/{stop}")]
+pub async fn multiple_legitimate_requests(path: web::Path<String>) -> impl Responder {
+    if path.into_inner() == "stop" {
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(GenericResponse {
+                message: format!("Hello!"),
+            })
+    } else {
+        HttpResponse::Ok()
+            .content_type(ContentType::json())
+            .json(GenericResponse {
+                message: format!("Hello!"),
+            })
     }
 }
