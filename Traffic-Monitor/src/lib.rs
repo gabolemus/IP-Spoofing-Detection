@@ -1,3 +1,3 @@
 pub mod model;
 
-pub use model::Packet;
+pub use model::{parse_cmd_args, run, Packet};
