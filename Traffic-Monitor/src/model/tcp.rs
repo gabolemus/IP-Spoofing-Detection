@@ -1306,7 +1306,7 @@ impl TCP {
     }
 
     /// Get the TCP layer header values for the CSV file
-    pub fn get_csv_header(delimiter: &str) -> String {
+    pub fn get_csv_header(&self, delimiter: &str) -> String {
         let mut header = String::new();
 
         header.push_str(format!("mptcp.analysis.missing_algorithm{}", delimiter).as_str());

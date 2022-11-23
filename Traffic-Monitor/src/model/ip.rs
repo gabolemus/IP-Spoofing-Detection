@@ -580,7 +580,7 @@ impl IP {
     }
 
     /// Get the IP layer header values for the CSV file
-    pub fn get_csv_header(delimiter: &str) -> String {
+    pub fn get_csv_header(&self, delimiter: &str) -> String {
         let mut header = String::new();
 
         header.push_str(format!("ip.addr{}", delimiter).as_str());
