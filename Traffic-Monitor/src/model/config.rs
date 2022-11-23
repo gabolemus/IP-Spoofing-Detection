@@ -14,11 +14,14 @@ pub struct Config {
     /// Time interval in seconds to check for new packets
     /// If `None`, the program will check for new packets every 30 seconds.
     pub time_interval: Option<u64>,
+    /// Prevent the creation of a text file with the data of the packets.
+    /// By default, the file will be created.
+    pub no_text_file: bool,
 }
 
 // Config implementations
 impl Config {
-    pub fn new(logger: &slog::Logger, pcap_path: &str, csv_path: Option<&str>, time_interval: Option<u64>) -> Option<Self> {
+    pub fn new(logger: &slog::Logger, pcap_path: &str, csv_path: Option<&str>, time_interval: Option<u64>, no_text_file: bool) -> Option<Self> {
         if pcap_path.is_empty() {
             error!(logger, "El path al archivo PCAP no puede estar vacío");
             return None;
@@ -54,6 +57,7 @@ impl Config {
             pcap_path: pcap_path.to_string(),
             csv_path,
             time_interval,
+            no_text_file,
         })
     }
 }

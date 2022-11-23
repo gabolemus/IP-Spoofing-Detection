@@ -41,6 +41,12 @@ pub fn parse_cmd_args() -> Option<Config> {
                 .default_value("30")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("no-text-file")
+                .short('n')
+                .long("no-text-file")
+                .help("Evita la creación de un archivo de texto con los datos de los paquetes. Por defecto, se creará un archivo de texto.")
+        )
         .get_matches();
 
     // Assign the values to the config struct.
@@ -49,6 +55,7 @@ pub fn parse_cmd_args() -> Option<Config> {
         matches.value_of("pcap").unwrap(),
         matches.value_of("csv"),
         matches.value_of("time-interval").unwrap().parse().ok(),
+        matches.is_present("no-text-file"),
     )
 }
 
