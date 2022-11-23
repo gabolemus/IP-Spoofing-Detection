@@ -8,4 +8,4 @@ name = "traffic-monitor"
 path = "src/main.rs"
 
 [dependencies]
-pcap-parser = "^0.14" # To parse the pcap file
+rtshark = "^2"
