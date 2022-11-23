@@ -8,4 +8,8 @@ name = "traffic-monitor"
 path = "src/main.rs"
 
 [dependencies]
-rtshark = "^2"
+clap = "^3" # To parse command line arguments
+indicatif = "^0.16" # To display progress bars
+rtshark = "^2" # To capture packets
+slog = "^2" # To log messages
+slog-term = "^2" # To log messages to the terminal
