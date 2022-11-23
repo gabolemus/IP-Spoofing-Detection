@@ -86,19 +86,34 @@ fn main() {
         }
 
         pcap_packets.push(new_packet);
-
-        // Write the header to the CSV file
-        csv_file
-            .write_all(format!("{}\n", pcap_packets[0].get_csv_header()).as_bytes())
-            .unwrap();
-
-        // Write the data to the CSV file
-        for packet in &pcap_packets {
-            csv_file
-                .write_all(format!("{}\n", packet.get_csv_data()).as_bytes())
-                .unwrap();
-        }
     }
+
+    // Determine the vector with more fields out of all the packets with a closure
+    let temp_packets = pcap_packets.clone();
+    let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
+        if packet.fields.len() > acc.len() {
+            acc = packet.fields.clone();
+        }
+        acc
+    });
+
+    // Set the fields for all the packets
+    for packet in &mut pcap_packets {
+        packet.set_fields(all_fields.clone());
+    }
+
+    // Write the CSV header to the file
+    let csv_header = pcap_packets[0].get_csv_header();
+    csv_file.write_all(format!("{}\n", csv_header).as_bytes()).unwrap();
+
+    // Write the CSV data to the file
+    for packet in &pcap_packets {
+        let csv_data = format!("{}\n", packet.get_csv_data());
+        csv_file.write_all(csv_data.as_bytes()).unwrap();
+    }
+
+    // Write a new line
+    csv_file.write_all("\n".as_bytes()).unwrap();
 }
 
 /// Convert Hex string to unicode string
