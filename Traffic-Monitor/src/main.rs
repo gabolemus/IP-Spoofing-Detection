@@ -1,143 +1,25 @@
-use std::fs::File;
-use std::io::Write;
-
-use ip_traffic_monitor::Packet;
+use ip_traffic_monitor::{parse_cmd_args, run};
+use slog::error;
+use std::{env, process::exit};
 
 fn main() {
-    let mut pcap_packets: Vec<Packet> = Vec::new();
+    // Enable backtraces for debugging purposes
+    env::set_var("RUST_BACKTRACE", "1");
 
-    // Todo: improve the way the Wireshark/TShark packet fields are captured to occupy less space.
-    // Maybe use a HashMap instead of a struct for each layer.
+    // Todo: add a progress bar to show the execution of the program
 
-    // Create a file to write the data to
-    let mut txt_file = File::create("network-traffic.txt").unwrap();
-    let mut csv_file = File::create("network-traffic.csv").unwrap();
-
-    // Creates a builder with needed tshark parameters
-    let builder =
-        rtshark::RTSharkBuilder::builder().input_path("/home/gabo/Downloads/network-traffic.pcap");
-
-    // Start a new tshark process
-    let mut rtshark = builder
-        .spawn()
-        .unwrap_or_else(|e| panic!("Error starting tshark: {e}"));
-
-    let mut i = 1;
-    let mut is_first_packet = true;
-
-    // Read the packets until the end of the PCAP file
-    while let Some(packet) = rtshark.read().unwrap_or_else(|e| {
-        eprintln!("Error parsing tshark output: {e}");
-        None
-    }) {
-        let mut new_packet = Packet::new();
-
-        // If this is not the first packet, check that the last line in the file
-        // is a new line. If it's not, write a new line
-        if !is_first_packet {
-            // Write a new line
-            txt_file.write_all("\n".as_bytes()).unwrap();
-        }
-
-        if packet.layer_count() > 0 {
-            println!("Packet #{} analyzed", i);
-        }
-
-        txt_file
-            .write_all(format!("Packet #{}\n", i).as_bytes())
-            .unwrap();
-        i += 1;
-        is_first_packet = false;
-
-        for layer in packet {
-            for metadata in layer {
-                if metadata.name() == "tcp.payload" {
-                    // Write the data to the text file
-                    txt_file
-                        .write_all(
-                            format!(
-                                "{}: {}\n",
-                                metadata.name(),
-                                remove_new_lines(hex_to_string(metadata.value().trim()).as_str())
-                            )
-                            .as_bytes(),
-                        )
-                        .unwrap();
-
-                    // Add the data to the packet
-                    new_packet.add_metadata(metadata.name(), metadata.value());
-                } else {
-                    // Write the data to the text file
-                    txt_file
-                        .write_all(
-                            format!(
-                                "{}: {}\n",
-                                metadata.name(),
-                                remove_new_lines(metadata.value().trim())
-                            )
-                            .as_bytes(),
-                        )
-                        .unwrap();
-
-                    // Add the data to the packet
-                    new_packet.add_metadata(metadata.name(), metadata.value());
-                }
+    // Parse the command line argumets into an `Option<Config>` struct
+    if let Some(config) = parse_cmd_args() {
+        // Run the program with the given configuration
+        exit(match run(&config) {
+            Ok(_) => 0,
+            Err(err) => {
+                error!(config.logger, "Ocurrió un error: {}", err);
+                1
             }
-        }
-
-        pcap_packets.push(new_packet);
+        });
+    } else {
+        // Exit the program with an error code
+        exit(1);
     }
-
-    // Determine the vector with more fields out of all the packets with a closure
-    let temp_packets = pcap_packets.clone();
-    let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
-        if packet.fields.len() > acc.len() {
-            acc = packet.fields.clone();
-        }
-        acc
-    });
-
-    // Set the fields for all the packets
-    for packet in &mut pcap_packets {
-        packet.set_fields(all_fields.clone());
-    }
-
-    // Write the CSV header to the file
-    let csv_header = pcap_packets[0].get_csv_header();
-    csv_file.write_all(format!("{}\n", csv_header).as_bytes()).unwrap();
-
-    // Write the CSV data to the file
-    for packet in &pcap_packets {
-        let csv_data = format!("{}\n", packet.get_csv_data());
-        csv_file.write_all(csv_data.as_bytes()).unwrap();
-    }
-
-    // Write a new line
-    csv_file.write_all("\n".as_bytes()).unwrap();
-}
-
-/// Convert Hex string to unicode string
-/// For example: 22:73:74:61:74:75:73:22:3a:22:73:74:61:72:74:22 -> "status":"start"
-/// Skip the colon
-fn hex_to_string(hex: &str) -> String {
-    let mut result = String::new();
-    let mut hex = hex.to_string();
-
-    hex.retain(|c| c != ':');
-
-    for i in (0..hex.len()).step_by(2) {
-        let byte = u8::from_str_radix(&hex[i..i + 2], 16).unwrap();
-
-        result.push(byte as char);
-    }
-
-    result
-}
-
-/// Remove new line characters from a string
-fn remove_new_lines(string: &str) -> String {
-    string
-        .replace("\r", "")
-        .replace("\n", "")
-        .replace("\r\n", "")
 }
