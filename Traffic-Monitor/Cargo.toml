@@ -1,0 +1,11 @@
+[package]
+name = "ip_traffic_monitor"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "traffic-monitor"
+path = "src/main.rs"
+
+[dependencies]
+pcap-parser = "^0.14" # To parse the pcap file
