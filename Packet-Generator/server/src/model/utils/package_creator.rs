@@ -228,14 +228,10 @@ pub async fn send_multiple_packets(
 
 /// Parse the parameters for a single request.
 fn parse_single_req_params(params: web::Json<SingleRequestParams>) -> Config {
-    println!("TCP port: {:?}", params.port);
-
     let tcp_port = match params.port {
         Some(port) => port,
         None => rand::thread_rng().gen_range(1024..=65535), // Generate a random source port (between 1024 and 65535)
     };
-
-    println!("TCP port: {:?}", tcp_port);
 
     Config {
         source_ip: string_to_ipaddr(&params.source_ip, &get_local_ip("127.0.0.1")),
@@ -326,8 +322,8 @@ fn create_packet(
         let packet = TCPIPv4Packet::new(
             get_ipv4_addr(config.source_ip),
             get_ipv4_addr(config.destination_ip),
-            Some(config.data.clone()), // Payload to be sent
-            // None, // Send no payload
+            // Some(config.data.clone()), // Payload to be sent
+            None, // Send no payload
             None,
             config.port,
             spoof_packet,
