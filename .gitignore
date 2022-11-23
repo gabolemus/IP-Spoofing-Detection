@@ -3,3 +3,6 @@
 
 # Network traffic dumps
 tcpdump/
+
+# CSV files for data analysis
+*.csv
