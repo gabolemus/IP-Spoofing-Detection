@@ -15,7 +15,7 @@ fn main() {
         let mut loop_count = 1;
 
         loop {
-            if loop_count == 5 {
+            if loop_count == 3 {
                 break;
             }
 
@@ -31,7 +31,7 @@ fn main() {
             };
 
             // Sleep for 15 seconds
-            std::thread::sleep(std::time::Duration::from_secs(15));
+            std::thread::sleep(std::time::Duration::from_secs(5));
         }
 
         exit(0);
