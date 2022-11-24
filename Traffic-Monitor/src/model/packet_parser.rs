@@ -1,8 +1,7 @@
-use clap::Arg;
-use slog::o;
-
 /// File that contains the functions to parse the PCAP packets
 use crate::Packet;
+use clap::Arg;
+use slog::error;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
@@ -24,9 +23,9 @@ pub fn parse_cmd_args() -> Option<Config> {
                 .index(1),
         )
         .arg(
-            Arg::with_name("csv")
-                .short('c')
-                .long("csv")
+            Arg::with_name("csv-out")
+                .short('o')
+                .long("csv-out")
                 .value_name("CSV")
                 .help("Ruta al archivo CSV donde se guardarán los resultados. Si no se especifica, se guardará en el mismo directorio que el archivo PCAP con el mismo nombre y extensión .csv")
                 .default_value(".")
@@ -51,9 +50,8 @@ pub fn parse_cmd_args() -> Option<Config> {
 
     // Assign the values to the config struct.
     Config::new(
-        &slog::Logger::root(slog::Discard, o!()),
         matches.value_of("pcap").unwrap(),
-        matches.value_of("csv"),
+        matches.value_of("csv-out"),
         matches.value_of("time-interval").unwrap().parse().ok(),
         matches.is_present("no-text-file"),
     )
@@ -61,12 +59,24 @@ pub fn parse_cmd_args() -> Option<Config> {
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
+    // Check that the out path exists
+    if !std::path::Path::new(&config.out).exists() {
+        error!(config.logger, "El archivo CSV no existe");
+        std::process::exit(1);
+    }
+
     // Create a vector to store the packets
     let mut pcap_packets: Vec<Packet> = Vec::new();
 
+    // Check if the text file should be created or overwritten
+    let mut txt_file = if !config.no_text_file {
+        Some(File::create(format!("{}.txt", &config.out))?)
+    } else {
+        None
+    };
+
     // Create a file to write the data to
-    let mut txt_file = File::create("network-traffic.txt").unwrap();
-    let mut csv_file = File::create("network-traffic.csv").unwrap();
+    let mut csv_file = File::create(format!("{}.csv", &config.out))?;
 
     // Creates a builder with needed tshark parameters
     let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
@@ -86,52 +96,55 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     }) {
         let mut new_packet = Packet::new();
 
-        // If this is not the first packet, check that the last line in the file
-        // is a new line. If it's not, write a new line
-        if !is_first_packet {
-            // Write a new line
-            txt_file.write_all("\n".as_bytes()).unwrap();
+        if !config.no_text_file {
+            if !is_first_packet {
+                // If this is not the first packet, check that the last line in the file
+                // is a new line. If it's not, write a new line
+                write_to_text_file(&mut txt_file, "\n");
+            }
+
+            // Write the packet number to the text file
+            write_to_text_file(&mut txt_file, format!("Packet #{}\n", i).as_str());
         }
 
         if packet.layer_count() > 0 {
             println!("Packet #{} analyzed", i);
         }
 
-        txt_file
-            .write_all(format!("Packet #{}\n", i).as_bytes())
-            .unwrap();
         i += 1;
         is_first_packet = false;
 
         for layer in packet {
             for metadata in layer {
                 if metadata.name() == "tcp.payload" {
-                    // Write the data to the text file
-                    txt_file
-                        .write_all(
+                    if !config.no_text_file {
+                        // Write the data to the text file
+                        write_to_text_file(
+                            &mut txt_file,
                             format!(
                                 "{}: {}\n",
                                 metadata.name(),
                                 remove_new_lines(hex_to_string(metadata.value().trim()).as_str())
                             )
-                            .as_bytes(),
-                        )
-                        .unwrap();
+                            .as_str(),
+                        );
+                    }
 
                     // Add the data to the packet
                     new_packet.add_metadata(metadata.name(), metadata.value());
                 } else {
-                    // Write the data to the text file
-                    txt_file
-                        .write_all(
+                    if !config.no_text_file {
+                        // Write the data to the text file
+                        write_to_text_file(
+                            &mut txt_file,
                             format!(
                                 "{}: {}\n",
                                 metadata.name(),
                                 remove_new_lines(metadata.value().trim())
                             )
-                            .as_bytes(),
-                        )
-                        .unwrap();
+                            .as_str(),
+                        );
+                    }
 
                     // Add the data to the packet
                     new_packet.add_metadata(metadata.name(), metadata.value());
@@ -171,4 +184,13 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     println!("{} paquetes han sido analizados", pcap_packets.len());
 
     Ok("")
+}
+
+/// Write to text file. Because the user can choose to not create said file, its
+/// argument is an Option<File>
+fn write_to_text_file(file: &mut Option<File>, data: &str) {
+    match file {
+        Some(file) => file.write_all(data.as_bytes()).unwrap(),
+        None => (),
+    }
 }
