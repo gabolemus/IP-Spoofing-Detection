@@ -4,14 +4,19 @@ use std::collections::HashMap;
 /// Struct that represents a pcap packet
 #[derive(Debug, Clone)]
 pub struct Packet {
+    /// Packet number
+    pub packet_number: u32,
+
     /// Wether the packet is spoofed, for the test data, the packets with the
     /// field "ip.flags.rb" (reserved bit) set to 1 are spoofed.
     ///
     /// This does not reflect reality, as this field is not used in real
     /// applications, but will be used for the test data.
     pub is_spoofed: bool,
+
     /// Hashmap that contains the metadata of the packet
     pub metadata: HashMap<String, String>,
+
     /// The fields of the packet.
     ///
     /// Not all the packets will have the same fields, so they are stored in a
@@ -25,10 +30,16 @@ impl Packet {
     /// Create a new empty packet
     pub fn new() -> Self {
         Self {
+            packet_number: 0,
             is_spoofed: false,
             metadata: HashMap::new(),
             fields: Vec::new(),
         }
+    }
+
+    /// Update the packet number
+    pub fn update_packet_number(&mut self, packet_number: u32) {
+        self.packet_number = packet_number;
     }
 
     /// Set the vector of fields for the packet
