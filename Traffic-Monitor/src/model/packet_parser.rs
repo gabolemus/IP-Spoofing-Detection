@@ -22,8 +22,6 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     // Parse the PCAP file
     parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
 
-    println!("Packets count: {}", pcap_packets.len());
-
     // Write the packets' data to the CSV file
     write_to_csv_file(pcap_packets, csv_file);
 
