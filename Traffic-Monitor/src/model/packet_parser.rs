@@ -7,6 +7,7 @@ use slog::error;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
@@ -16,11 +17,33 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
         Err(err) => return Err(err),
     };
 
+    // If the /traffic-analisis/ directory doesn't exist, create it
+    if !Path::new("traffic-analisis").exists() {
+        std::fs::create_dir("traffic-analisis")?;
+    }
+
+    // Print the working directory
+    // AKA: execute the `pwd` command
+    println!(
+        "Working directory: {}",
+        std::env::current_dir().unwrap().display()
+    );
+
+    // Print all the files in the local directory
+    // AKA: execute the `ls -l` command
+    for entry in std::fs::read_dir(".")? {
+        let entry = entry?;
+        let path = entry.path();
+        println!("{:?}", path);
+    }
+
     // Create a progress bar withouth a known end
     let pb = create_progress_bar();
 
     // Parse the PCAP file
     parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
+
+    println!("Packets count: {}", pcap_packets.len());
 
     // Write the packets' data to the CSV file
     write_to_csv_file(pcap_packets, csv_file);
@@ -65,13 +88,16 @@ pub fn get_runner_config(
 
     // Check if the text file should be created or overwritten
     let txt_file = if !config.no_text_file {
-        Some(File::create(format!("{}.txt", file_name))?)
+        Some(File::create(format!(
+            "./traffic-analysis/{}.txt",
+            file_name
+        ))?)
     } else {
         None
     };
 
     // Create a file to write the data to
-    let csv_file = File::create(format!("{}.csv", file_name))?;
+    let csv_file = File::create(format!("./traffic-analysis/{}.csv", file_name))?;
 
     // Creates a builder with needed tshark parameters
     let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
@@ -180,33 +206,35 @@ fn parse_pcap_file(
 
 /// Write packet data to the CSV file
 fn write_to_csv_file(mut pcap_packets: Vec<Packet>, mut csv_file: File) {
-    // Determine the vector with more fields out of all the packets with a closure
-    let temp_packets = pcap_packets.clone();
-    let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
-        if packet.fields.len() > acc.len() {
-            acc = packet.fields.clone();
+    if pcap_packets.len() > 0 {
+        // Determine the vector with more fields out of all the packets with a closure
+        let temp_packets = pcap_packets.clone();
+        let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
+            if packet.fields.len() > acc.len() {
+                acc = packet.fields.clone();
+            }
+            acc
+        });
+
+        // Set the fields for all the packets
+        for packet in &mut pcap_packets {
+            packet.set_fields(all_fields.clone());
         }
-        acc
-    });
 
-    // Set the fields for all the packets
-    for packet in &mut pcap_packets {
-        packet.set_fields(all_fields.clone());
+        // Write the CSV header to the file
+        let csv_header = pcap_packets[0].get_csv_header();
+        csv_file
+            .write_all(format!("{}\n", csv_header).as_bytes())
+            .unwrap();
+
+        // Write the CSV data to the file
+        for packet in &pcap_packets {
+            let csv_data = format!("{}\n", packet.get_csv_data());
+            csv_file.write_all(csv_data.as_bytes()).unwrap();
+        }
+
+        println!("{} paquetes han sido analizados", pcap_packets.len());
     }
-
-    // Write the CSV header to the file
-    let csv_header = pcap_packets[0].get_csv_header();
-    csv_file
-        .write_all(format!("{}\n", csv_header).as_bytes())
-        .unwrap();
-
-    // Write the CSV data to the file
-    for packet in &pcap_packets {
-        let csv_data = format!("{}\n", packet.get_csv_data());
-        csv_file.write_all(csv_data.as_bytes()).unwrap();
-    }
-
-    println!("{} paquetes han sido analizados", pcap_packets.len());
 }
 
 /// Write to text file. Because the user can choose to not create said file, its
