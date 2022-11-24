@@ -1,6 +1,7 @@
 /// File that contains the functions to parse the PCAP packets
 use super::{hex_to_string, remove_new_lines, Config};
 use crate::Packet;
+use rtshark::RTSharkBuilderReady;
 use slog::error;
 use std::error::Error;
 use std::fs::File;
@@ -8,27 +9,11 @@ use std::io::Write;
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
-    // Check that the out path exists
-    if !std::path::Path::new(&config.out).exists() {
-        error!(config.logger, "El archivo CSV no existe");
-        std::process::exit(1);
-    }
-
-    // Create a vector to store the packets
-    let mut pcap_packets: Vec<Packet> = Vec::new();
-
-    // Check if the text file should be created or overwritten
-    let mut txt_file = if !config.no_text_file {
-        Some(File::create(format!("{}.txt", &config.out))?)
-    } else {
-        None
+    // Get runner configuration
+    let (mut pcap_packets, mut txt_file, mut csv_file, builder) = match get_runner_config(&config) {
+        Ok(tup) => tup,
+        Err(err) => return Err(err),
     };
-
-    // Create a file to write the data to
-    let mut csv_file = File::create(format!("{}.csv", &config.out))?;
-
-    // Creates a builder with needed tshark parameters
-    let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
 
     // Start a new tshark process
     let mut rtshark = builder
@@ -133,6 +118,43 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     println!("{} paquetes han sido analizados", pcap_packets.len());
 
     Ok("")
+}
+
+/// Get the runner configuration
+pub fn get_runner_config(
+    config: &Config,
+) -> Result<(Vec<Packet>, Option<File>, File, RTSharkBuilderReady), Box<dyn Error>> {
+    // Check that the out path exists
+    if !std::path::Path::new(&config.out).exists() {
+        error!(config.logger, "El archivo CSV no existe");
+        std::process::exit(1);
+    }
+
+    // Create a vector to store the packets
+    let pcap_packets: Vec<Packet> = Vec::new();
+
+    // Get the files names
+    let file_name = if config.out == "." {
+        "network-traffic".to_string()
+    } else {
+        config.out.clone()
+    };
+
+    // Check if the text file should be created or overwritten
+    let txt_file = if !config.no_text_file {
+        Some(File::create(format!("{}.txt", file_name))?)
+    } else {
+        None
+    };
+
+    // Create a file to write the data to
+    let csv_file = File::create(format!("{}.csv", file_name))?;
+
+    // Creates a builder with needed tshark parameters
+    let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
+
+    // Return the configuration
+    Ok((pcap_packets, txt_file, csv_file, builder))
 }
 
 /// Write to text file. Because the user can choose to not create said file, its
