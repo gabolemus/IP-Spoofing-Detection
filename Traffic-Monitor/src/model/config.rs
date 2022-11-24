@@ -47,7 +47,7 @@ impl Config {
         }
 
         // If the CSV file already exists, create a new one and append a number to the end
-        let csv_path = match out {
+        let out = match out {
             Some(path) => path.to_string(),
             None => ".".to_string(),
         };
@@ -56,7 +56,7 @@ impl Config {
         Some(Self {
             logger,
             pcap_path: pcap_path.to_string(),
-            out: csv_path,
+            out,
             time_interval,
             no_text_file,
         })
@@ -99,7 +99,10 @@ pub fn parse_cmd_args() -> Option<Config> {
             Arg::with_name("no-text-file")
                 .short('n')
                 .long("no-text-file")
+                .value_name("NO_TEXT_FILE")
                 .help("Evita la creación de un archivo de texto con los datos de los paquetes. Por defecto, se creará un archivo de texto.")
+                .default_value("false")
+                .takes_value(true),
         )
         .get_matches();
 
@@ -108,6 +111,6 @@ pub fn parse_cmd_args() -> Option<Config> {
         matches.value_of("pcap").unwrap(),
         matches.value_of("csv-out"),
         matches.value_of("time-interval").unwrap().parse().ok(),
-        matches.is_present("no-text-file"),
+        matches.value_of("no-text-file").unwrap().parse().ok().unwrap(),
     )
 }
