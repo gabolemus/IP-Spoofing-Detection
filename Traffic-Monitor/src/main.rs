@@ -1,48 +1,42 @@
-use pcap_parser::traits::PcapReaderIterator;
-use pcap_parser::*;
-use std::fs::File;
+use ip_traffic_monitor::{parse_cmd_args, run};
+use slog::error;
+use std::{env, process::exit};
 
 fn main() {
-    let network_traffic = "../tcpdump/network-traffic.pcap";
-    let file = File::open(network_traffic).unwrap();
+    // Enable backtraces for debugging purposes
+    env::set_var("RUST_BACKTRACE", "1");
 
-    let mut blocks_count = 0;
-    let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
+    // Todo: execute the run function infinitely
+    // Todo: once the file has been written once, append the new data to it
+    // instead of overwriting it
 
-    loop {
-        match reader.next() {
-            Ok((offset, block)) => {
-                println!("");
-                blocks_count += 1;
+    // Parse the command line argumets into an `Option<Config>` struct
+    if let Some(config) = parse_cmd_args() {
+        let mut loop_count = 1;
 
-                match block {
-                    PcapBlockOwned::LegacyHeader(_header) => {
-                        // Print the header
-                        // println!("got header: {:?}", header);
+        loop {
+            if loop_count == 5 {
+                break;
+            }
 
-                        // Ignore the header for now
-                        blocks_count -= 1;
-                    }
+            loop_count += 1;
 
-                    PcapBlockOwned::Legacy(block) => {
-                        // Print the block
-                        println!("Got block #{}: {:?}", blocks_count, block);
-                    }
-
-                    PcapBlockOwned::NG(_) => unreachable!(),
+            // Run the program with the given configuration
+            match run(&config) {
+                Ok(_) => 0,
+                Err(err) => {
+                    error!(config.logger, "Ocurrió un error: {}", err);
+                    1
                 }
-                reader.consume(offset);
-            }
+            };
 
-            Err(PcapError::Eof) => break,
-
-            Err(PcapError::Incomplete) => {
-                reader.refill().unwrap();
-            }
-
-            Err(err) => panic!("An error while reading the file: {:?}", err),
+            // Sleep for 15 seconds
+            std::thread::sleep(std::time::Duration::from_secs(15));
         }
-    }
 
-    println!("\nNumber of blocks: {}", blocks_count);
+        exit(0);
+    } else {
+        // Exit the program with an error code
+        exit(1);
+    }
 }

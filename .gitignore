@@ -3,3 +3,12 @@
 
 # Network traffic dumps
 tcpdump/
+
+# Traffic analysis files
+traffic-analysis/
+
+# CSV files for data analysis
+*.csv
+
+# Text files for data analysis
+*.txt

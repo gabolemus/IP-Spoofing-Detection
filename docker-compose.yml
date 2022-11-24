@@ -17,3 +17,15 @@ services:
     command: -i any -w /tcpdump/network-traffic.pcap
     depends_on:
       - packet-generator
+
+  traffic-analyzer:
+    image: gabolemus/packet-parser
+    container_name: packet-parser
+    volumes:
+      - ./tcpdump:/tcpdump
+      - ./traffic-analysis:/traffic-analysis
+    depends_on:
+      - packet-generator
+      - tcpdump
+    command:
+      - ./tcpdump/network-traffic.pcap
