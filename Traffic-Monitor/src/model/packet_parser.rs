@@ -5,45 +5,56 @@ use indicatif::ProgressBar;
 use rtshark::RTSharkBuilderReady;
 use slog::error;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Write;
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
-    let mut iteration = 1;
+    // Initially, no packets have been parsed. After the first iteration, this
+    // value is used to skip the packets that have already been parsed
+    let mut parsed_packets: u32 = 0;
+    let mut iter = 1;
 
     loop {
         // Get runner configuration
-        let (mut pcap_packets, txt_file, csv_file, builder) = match get_runner_config(&config) {
+        let (mut pcap_packets, txt_file, csv_file, builder) = match get_runner_config(&config, iter)
+        {
             Ok(tup) => tup,
             Err(err) => return Err(err),
         };
 
-        // Create a progress bar withouth a known end
-        let pb = create_progress_bar();
+        // Create a spinner to signify that the program is running
+        let pb = create_spinner();
 
         // Parse the PCAP file
-        parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
+        parse_pcap_file(
+            &config,
+            builder,
+            txt_file,
+            &mut pcap_packets,
+            &mut parsed_packets,
+        );
 
         // Write the packets' data to the CSV file
-        write_to_csv_file(pcap_packets, csv_file);
+        write_to_csv_file(pcap_packets, csv_file, iter == 1, &mut parsed_packets);
 
         // Finish the progress bar
-        let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iteration);
+        let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
         pb.finish_with_message(finish_msg.clone());
 
         // Increment the iteration counter
-        iteration += 1;
+        iter += 1;
 
         // Sleep for the amount of time specified in the configuration
         let sleep_time = config.time_interval.unwrap_or_else(|| 30);
-        std::thread::sleep(std::time::Duration::from_secs(sleep_time));          
+        std::thread::sleep(std::time::Duration::from_secs(sleep_time));
     }
 }
 
 /// Get the runner configuration
 pub fn get_runner_config(
     config: &Config,
+    iteration: u32,
 ) -> Result<(Vec<Packet>, Option<File>, File, RTSharkBuilderReady), Box<dyn Error>> {
     // Check that the out path exists
     if !std::path::Path::new(&config.out).exists() {
@@ -74,13 +85,30 @@ pub fn get_runner_config(
 
     // Check if the text file should be created or overwritten
     let txt_file = if !config.no_text_file {
-        Some(File::create(format!("{}.txt", file_name))?)
+        // If it's the first iteration, create or overwrite the file
+        if iteration == 1 {
+            Some(File::create(format!("{}.txt", file_name))?)
+        } else {
+            // Open the file in append mode if it already exists
+            Some(
+                OpenOptions::new()
+                    .append(true)
+                    .open(format!("{}.txt", file_name))?,
+            )
+        }
     } else {
         None
     };
 
-    // Create a file to write the data to
-    let csv_file = File::create(format!("{}.csv", file_name))?;
+    // If it's the first iteration, create or overwrite the file
+    let csv_file = if iteration == 1 {
+        File::create(format!("{}.csv", file_name))?
+    } else {
+        // If the file already exists, don't overwrite it
+        OpenOptions::new()
+            .append(true)
+            .open(format!("{}.csv", file_name))?
+    };
 
     // Creates a builder with needed tshark parameters
     let builder = rtshark::RTSharkBuilder::builder().input_path(&config.pcap_path);
@@ -90,7 +118,7 @@ pub fn get_runner_config(
 }
 
 /// Create a progress bar
-pub fn create_progress_bar() -> ProgressBar {
+pub fn create_spinner() -> ProgressBar {
     // Create a progress bar
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(100);
@@ -111,13 +139,14 @@ fn parse_pcap_file(
     rtshark_builder: RTSharkBuilderReady,
     mut txt_file: Option<File>,
     pcap_packets: &mut Vec<Packet>,
+    parsed_packets: &mut u32,
 ) {
     // Start a new tshark process
     let mut rtshark = rtshark_builder
         .spawn()
         .unwrap_or_else(|e| panic!("Error starting tshark: {e}"));
 
-    let mut i = 1;
+    let mut i: u32 = 1;
     let mut is_first_packet = true;
 
     // Read the packets until the end of the PCAP file
@@ -125,7 +154,15 @@ fn parse_pcap_file(
         eprintln!("Error parsing tshark output: {e}");
         None
     }) {
+        // If i is less than or equal to the number of parsed packets, skip the
+        // packet
+        if i <= *parsed_packets && *parsed_packets != 0 {
+            continue;
+        }
+
         let mut new_packet = Packet::new();
+        new_packet.update_packet_number(i);
+        // println!("Packet number: {}", new_packet.packet_number);
 
         if !config.no_text_file {
             if !is_first_packet {
@@ -137,10 +174,6 @@ fn parse_pcap_file(
             // Write the packet number to the text file
             write_to_text_file(&mut txt_file, format!("Packet #{}\n", i).as_str());
         }
-
-        // if packet.layer_count() > 0 {
-        //     println!("Packet #{} analyzed", i);
-        // }
 
         i += 1;
         is_first_packet = false;
@@ -185,10 +218,18 @@ fn parse_pcap_file(
 
         pcap_packets.push(new_packet);
     }
+
+    // Close the tshark process
+    rtshark.kill();
 }
 
 /// Write packet data to the CSV file
-fn write_to_csv_file(mut pcap_packets: Vec<Packet>, mut csv_file: File) {
+fn write_to_csv_file(
+    mut pcap_packets: Vec<Packet>,
+    mut csv_file: File,
+    write_header: bool,
+    parsed_packets: &mut u32,
+) {
     if pcap_packets.len() > 0 {
         // Determine the vector with more fields out of all the packets with a closure
         let temp_packets = pcap_packets.clone();
@@ -198,25 +239,43 @@ fn write_to_csv_file(mut pcap_packets: Vec<Packet>, mut csv_file: File) {
             }
             acc
         });
+        let mut packet_analyzed_count = 0;
 
         // Set the fields for all the packets
         for packet in &mut pcap_packets {
             packet.set_fields(all_fields.clone());
         }
 
-        // Write the CSV header to the file
-        let csv_header = pcap_packets[0].get_csv_header();
-        csv_file
-            .write_all(format!("{}\n", csv_header).as_bytes())
-            .unwrap();
+        // Write the CSV header to the file if the file doesn't exist and if it
+        // has been written to yet
+        if !csv_file.metadata().unwrap().len() > 0 && write_header {
+            let csv_header = pcap_packets[0].get_csv_header();
+            csv_file
+                .write_all(format!("{}\n", csv_header).as_bytes())
+                .unwrap();
+        }
 
         // Write the CSV data to the file
         for packet in &pcap_packets {
+            // Skip the packet if it has already been written to the file
+            if packet.packet_number <= *parsed_packets && *parsed_packets != 0 {
+                continue;
+            }
+
             let csv_data = format!("{}\n", packet.get_csv_data());
             csv_file.write_all(csv_data.as_bytes()).unwrap();
+            packet_analyzed_count += 1;
         }
 
+        // Print the number of packets written to the file
         println!("{} paquetes han sido analizados", pcap_packets.len());
+        println!(
+            "{} paquetes han sido escritos al archivo",
+            packet_analyzed_count
+        );
+
+        // Update the number of parsed packets
+        *parsed_packets = pcap_packets.len() as u32;
     }
 }
 
