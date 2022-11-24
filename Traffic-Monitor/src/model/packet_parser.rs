@@ -1,6 +1,7 @@
 /// File that contains the functions to parse the PCAP packets
 use super::{hex_to_string, remove_new_lines, Config};
 use crate::Packet;
+use indicatif::ProgressBar;
 use rtshark::RTSharkBuilderReady;
 use slog::error;
 use std::error::Error;
@@ -15,11 +16,17 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
         Err(err) => return Err(err),
     };
 
+    // Create a progress bar withouth a known end
+    let pb = create_progress_bar();
+
     // Parse the PCAP file
     parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
 
     // Write the packets' data to the CSV file
     write_to_csv_file(pcap_packets, csv_file);
+
+    // Finish the progress bar
+    pb.finish_with_message("¡Análisis de paquetes finalizado!");
 
     // Return the result
     Ok("Análisis finalizado")
@@ -31,7 +38,18 @@ pub fn get_runner_config(
 ) -> Result<(Vec<Packet>, Option<File>, File, RTSharkBuilderReady), Box<dyn Error>> {
     // Check that the out path exists
     if !std::path::Path::new(&config.out).exists() {
-        error!(config.logger, "El archivo CSV no existe");
+        if !config.no_text_file {
+            error!(
+                config.logger,
+                "La ruta para guardar los archivos no existe: {}", config.out
+            );
+        } else {
+            error!(
+                config.logger,
+                "La ruta para guardar el archivo CSV no existe: {}", config.out
+            );
+        }
+
         std::process::exit(1);
     }
 
@@ -60,6 +78,22 @@ pub fn get_runner_config(
 
     // Return the configuration
     Ok((pcap_packets, txt_file, csv_file, builder))
+}
+
+/// Create a progress bar
+pub fn create_progress_bar() -> ProgressBar {
+    // Create a progress bar
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(100);
+    pb.set_message("Analizando los paquetes...");
+    pb.set_style(
+        indicatif::ProgressStyle::default_spinner()
+            .tick_strings(&["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"])
+            .template("{spinner:.green} {msg}"),
+    );
+
+    // Return the progress bar
+    pb
 }
 
 /// Parse the PCAP file
@@ -95,9 +129,9 @@ fn parse_pcap_file(
             write_to_text_file(&mut txt_file, format!("Packet #{}\n", i).as_str());
         }
 
-        if packet.layer_count() > 0 {
-            println!("Packet #{} analyzed", i);
-        }
+        // if packet.layer_count() > 0 {
+        //     println!("Packet #{} analyzed", i);
+        // }
 
         i += 1;
         is_first_packet = false;
