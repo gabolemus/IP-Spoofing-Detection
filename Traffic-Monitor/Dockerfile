@@ -6,7 +6,7 @@ COPY . .
 RUN cargo install --path .
 ENV CARGO_HOME=/usr/local/cargo
 
-FROM debian:buster-slim as runner
+FROM debian:bullseye-slim as runner
 
 RUN apt-get -qy update && apt-get -qy install \
     tshark \
