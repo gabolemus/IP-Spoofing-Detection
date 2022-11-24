@@ -10,13 +10,67 @@ use std::io::Write;
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     // Get runner configuration
-    let (mut pcap_packets, mut txt_file, mut csv_file, builder) = match get_runner_config(&config) {
+    let (mut pcap_packets, txt_file, csv_file, builder) = match get_runner_config(&config) {
         Ok(tup) => tup,
         Err(err) => return Err(err),
     };
 
+    // Parse the PCAP file
+    parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
+
+    // Write the packets' data to the CSV file
+    write_to_csv_file(pcap_packets, csv_file);
+
+    // Return the result
+    Ok("Análisis finalizado")
+}
+
+/// Get the runner configuration
+pub fn get_runner_config(
+    config: &Config,
+) -> Result<(Vec<Packet>, Option<File>, File, RTSharkBuilderReady), Box<dyn Error>> {
+    // Check that the out path exists
+    if !std::path::Path::new(&config.out).exists() {
+        error!(config.logger, "El archivo CSV no existe");
+        std::process::exit(1);
+    }
+
+    // Create a vector to store the packets
+    let pcap_packets: Vec<Packet> = Vec::new();
+
+    // Get the files names
+    let file_name = if config.out == "." {
+        "network-traffic".to_string()
+    } else {
+        config.out.clone()
+    };
+
+    // Check if the text file should be created or overwritten
+    let txt_file = if !config.no_text_file {
+        Some(File::create(format!("{}.txt", file_name))?)
+    } else {
+        None
+    };
+
+    // Create a file to write the data to
+    let csv_file = File::create(format!("{}.csv", file_name))?;
+
+    // Creates a builder with needed tshark parameters
+    let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
+
+    // Return the configuration
+    Ok((pcap_packets, txt_file, csv_file, builder))
+}
+
+/// Parse the PCAP file
+fn parse_pcap_file(
+    config: &Config,
+    rtshark_builder: RTSharkBuilderReady,
+    mut txt_file: Option<File>,
+    pcap_packets: &mut Vec<Packet>,
+) {
     // Start a new tshark process
-    let mut rtshark = builder
+    let mut rtshark = rtshark_builder
         .spawn()
         .unwrap_or_else(|e| panic!("Error starting tshark: {e}"));
 
@@ -88,7 +142,10 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
 
         pcap_packets.push(new_packet);
     }
+}
 
+/// Write packet data to the CSV file
+fn write_to_csv_file(mut pcap_packets: Vec<Packet>, mut csv_file: File) {
     // Determine the vector with more fields out of all the packets with a closure
     let temp_packets = pcap_packets.clone();
     let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
@@ -116,45 +173,6 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     }
 
     println!("{} paquetes han sido analizados", pcap_packets.len());
-
-    Ok("")
-}
-
-/// Get the runner configuration
-pub fn get_runner_config(
-    config: &Config,
-) -> Result<(Vec<Packet>, Option<File>, File, RTSharkBuilderReady), Box<dyn Error>> {
-    // Check that the out path exists
-    if !std::path::Path::new(&config.out).exists() {
-        error!(config.logger, "El archivo CSV no existe");
-        std::process::exit(1);
-    }
-
-    // Create a vector to store the packets
-    let pcap_packets: Vec<Packet> = Vec::new();
-
-    // Get the files names
-    let file_name = if config.out == "." {
-        "network-traffic".to_string()
-    } else {
-        config.out.clone()
-    };
-
-    // Check if the text file should be created or overwritten
-    let txt_file = if !config.no_text_file {
-        Some(File::create(format!("{}.txt", file_name))?)
-    } else {
-        None
-    };
-
-    // Create a file to write the data to
-    let csv_file = File::create(format!("{}.csv", file_name))?;
-
-    // Creates a builder with needed tshark parameters
-    let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
-
-    // Return the configuration
-    Ok((pcap_packets, txt_file, csv_file, builder))
 }
 
 /// Write to text file. Because the user can choose to not create said file, its
@@ -165,3 +183,14 @@ fn write_to_text_file(file: &mut Option<File>, data: &str) {
         None => (),
     }
 }
+
+// /// Write packet metadata to the text file
+// fn write_metadata(config: &Config, mut txt_file: Option<File>, metadata: &Metadata, value: &str) {
+//     if !config.no_text_file {
+//         // Write the data to the text file
+//         write_to_text_file(
+//             &mut txt_file,
+//             format!("{}: {}\n", metadata.name(), value).as_str(),
+//         );
+//     }
+// }
