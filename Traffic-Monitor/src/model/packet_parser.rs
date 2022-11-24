@@ -7,7 +7,6 @@ use slog::error;
 use std::error::Error;
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
@@ -16,26 +15,6 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
         Ok(tup) => tup,
         Err(err) => return Err(err),
     };
-
-    // If the /traffic-analisis/ directory doesn't exist, create it
-    if !Path::new("traffic-analisis").exists() {
-        std::fs::create_dir("traffic-analisis")?;
-    }
-
-    // Print the working directory
-    // AKA: execute the `pwd` command
-    println!(
-        "Working directory: {}",
-        std::env::current_dir().unwrap().display()
-    );
-
-    // Print all the files in the local directory
-    // AKA: execute the `ls -l` command
-    for entry in std::fs::read_dir(".")? {
-        let entry = entry?;
-        let path = entry.path();
-        println!("{:?}", path);
-    }
 
     // Create a progress bar withouth a known end
     let pb = create_progress_bar();
@@ -83,24 +62,21 @@ pub fn get_runner_config(
     let file_name = if config.out == "." {
         "network-traffic".to_string()
     } else {
-        config.out.clone()
+        format!("{}/network-traffic", config.out)
     };
 
     // Check if the text file should be created or overwritten
     let txt_file = if !config.no_text_file {
-        Some(File::create(format!(
-            "./traffic-analysis/{}.txt",
-            file_name
-        ))?)
+        Some(File::create(format!("{}.txt", file_name))?)
     } else {
         None
     };
 
     // Create a file to write the data to
-    let csv_file = File::create(format!("./traffic-analysis/{}.csv", file_name))?;
+    let csv_file = File::create(format!("{}.csv", file_name))?;
 
     // Creates a builder with needed tshark parameters
-    let builder = rtshark::RTSharkBuilder::builder().input_path(config.pcap_path.as_str());
+    let builder = rtshark::RTSharkBuilder::builder().input_path(&config.pcap_path);
 
     // Return the configuration
     Ok((pcap_packets, txt_file, csv_file, builder))
