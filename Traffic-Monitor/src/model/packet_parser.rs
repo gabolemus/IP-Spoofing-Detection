@@ -10,26 +10,35 @@ use std::io::Write;
 
 /// Run the configuration to parse the PCAP packets to a CSV file
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
-    // Get runner configuration
-    let (mut pcap_packets, txt_file, csv_file, builder) = match get_runner_config(&config) {
-        Ok(tup) => tup,
-        Err(err) => return Err(err),
-    };
+    let mut iteration = 1;
 
-    // Create a progress bar withouth a known end
-    let pb = create_progress_bar();
+    loop {
+        // Get runner configuration
+        let (mut pcap_packets, txt_file, csv_file, builder) = match get_runner_config(&config) {
+            Ok(tup) => tup,
+            Err(err) => return Err(err),
+        };
 
-    // Parse the PCAP file
-    parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
+        // Create a progress bar withouth a known end
+        let pb = create_progress_bar();
 
-    // Write the packets' data to the CSV file
-    write_to_csv_file(pcap_packets, csv_file);
+        // Parse the PCAP file
+        parse_pcap_file(&config, builder, txt_file, &mut pcap_packets);
 
-    // Finish the progress bar
-    pb.finish_with_message("¡Análisis de paquetes finalizado!");
+        // Write the packets' data to the CSV file
+        write_to_csv_file(pcap_packets, csv_file);
 
-    // Return the result
-    Ok("Análisis finalizado")
+        // Finish the progress bar
+        let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iteration);
+        pb.finish_with_message(finish_msg.clone());
+
+        // Increment the iteration counter
+        iteration += 1;
+
+        // Sleep for the amount of time specified in the configuration
+        let sleep_time = config.time_interval.unwrap_or_else(|| 30);
+        std::thread::sleep(std::time::Duration::from_secs(sleep_time));          
+    }
 }
 
 /// Get the runner configuration
