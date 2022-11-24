@@ -73,8 +73,8 @@ impl Packet {
             }
         }
 
-        // Print the count of the fields
-        println!("Fields: {}", self.fields.len());
+        // // Print the count of the fields
+        // println!("Fields: {}", self.fields.len());
 
         // Remove the last comma and return the header
         header.pop();
