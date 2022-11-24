@@ -13,14 +13,14 @@ fn main() {
     // Parse the command line argumets into an `Option<Config>` struct
     if let Some(config) = parse_cmd_args() {
         let mut loop_count = 1;
-        
+
         loop {
             if loop_count == 5 {
                 break;
             }
 
             loop_count += 1;
-            
+
             // Run the program with the given configuration
             match run(&config) {
                 Ok(_) => 0,
