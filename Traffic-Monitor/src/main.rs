@@ -6,8 +6,6 @@ fn main() {
     // Enable backtraces for debugging purposes
     env::set_var("RUST_BACKTRACE", "1");
 
-    // Todo: add a progress bar to show the execution of the program
-
     // Parse the command line argumets into an `Option<Config>` struct
     if let Some(config) = parse_cmd_args() {
         // Run the program with the given configuration
