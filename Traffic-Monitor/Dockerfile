@@ -14,8 +14,12 @@ RUN apt-get -qy update && apt-get -qy install \
 
 COPY --from=builder /usr/local/cargo/bin/traffic-monitor /usr/local/bin/traffic-monitor
 
+RUN mkdir /traffic-analysis
+
 VOLUME [ "/traffic-analysis" ]
 
 ENTRYPOINT [ "traffic-monitor" ]
 
-CMD ["traffic-monitor", "/traffic-analysis/tcpdump.pcap"]
+ENV PCAP_FILE /traffic-analysis/traffic.pcap
+
+CMD [ "traffic-monitor" ]
