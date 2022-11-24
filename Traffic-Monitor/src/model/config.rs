@@ -1,6 +1,7 @@
 // This file contains the configuration struct used by the program.
 
-use slog::{error, o};
+use slog::{error, o, Drain, Logger};
+use std::sync::Mutex;
 
 /// Configuration passed to the `run` function.
 pub struct Config {
@@ -10,7 +11,7 @@ pub struct Config {
     pub pcap_path: String,
     /// Path to the CSV file
     /// If `None`, the CSV file will be saved in the current directory.
-    pub csv_path: Option<String>,
+    pub out: String,
     /// Time interval in seconds to check for new packets
     /// If `None`, the program will check for new packets every 30 seconds.
     pub time_interval: Option<u64>,
@@ -21,14 +22,22 @@ pub struct Config {
 
 // Config implementations
 impl Config {
-    pub fn new(logger: &slog::Logger, pcap_path: &str, csv_path: Option<&str>, time_interval: Option<u64>, no_text_file: bool) -> Option<Self> {
+    pub fn new(
+        pcap_path: &str,
+        out: Option<&str>,
+        time_interval: Option<u64>,
+        no_text_file: bool,
+    ) -> Option<Self> {
+        // Create the logger
+        let decorator = slog_term::TermDecorator::new().build();
+        let drain = Mutex::new(slog_term::FullFormat::new(decorator).build()).fuse();
+        let logger = Logger::root(drain, o!());
+
+        // Check if the PCAP file was provided
         if pcap_path.is_empty() {
             error!(logger, "El path al archivo PCAP no puede estar vacío");
             return None;
         }
-        
-        // Create a new logger
-        let logger = logger.new(o!("module" => "config"));
 
         // Check if the PCAP file exists
         if !std::path::Path::new(pcap_path).exists() {
@@ -37,25 +46,16 @@ impl Config {
         }
 
         // If the CSV file already exists, create a new one and append a number to the end
-        let mut csv_path = csv_path.map(|path| path.to_string());
-        if let Some(path) = &csv_path {
-            if std::path::Path::new(path).exists() {
-                let mut i = 1;
-                loop {
-                    let new_path = format!("{}-{}", path, i);
-                    if !std::path::Path::new(&new_path).exists() {
-                        csv_path = Some(new_path);
-                        break;
-                    }
-                    i += 1;
-                }
-            }
-        }
+        let csv_path = match out {
+            Some(path) => path.to_string(),
+            None => ".".to_string(),
+        };
 
+        // Return the configuration
         Some(Self {
             logger,
             pcap_path: pcap_path.to_string(),
-            csv_path,
+            out: csv_path,
             time_interval,
             no_text_file,
         })
