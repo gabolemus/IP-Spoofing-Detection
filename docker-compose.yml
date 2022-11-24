@@ -19,11 +19,8 @@ services:
       - packet-generator
 
   traffic-analyzer:
-    # image: gabolemus/traffic-analyzer
-    build:
-      context: ./Traffic-Monitor
-      dockerfile: Dockerfile
-    container_name: traffic-analyzer
+    image: gabolemus/packet-parser
+    container_name: packet-parser
     volumes:
       - ./tcpdump:/tcpdump
       - ./traffic-analysis:/traffic-analysis
