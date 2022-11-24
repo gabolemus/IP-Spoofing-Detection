@@ -29,3 +29,5 @@ services:
       - tcpdump
     command:
       - ./tcpdump/network-traffic.pcap
+      - -o
+      - /traffic-analysis/
