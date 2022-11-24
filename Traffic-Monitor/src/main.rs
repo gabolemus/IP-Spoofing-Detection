@@ -12,29 +12,14 @@ fn main() {
 
     // Parse the command line argumets into an `Option<Config>` struct
     if let Some(config) = parse_cmd_args() {
-        let mut loop_count = 1;
-
-        loop {
-            if loop_count == 3 {
-                break;
+        // Run the program with the given configuration
+        match run(&config) {
+            Ok(_) => 0,
+            Err(err) => {
+                error!(config.logger, "Ocurrió un error: {}", err);
+                1
             }
-
-            loop_count += 1;
-
-            // Run the program with the given configuration
-            match run(&config) {
-                Ok(_) => 0,
-                Err(err) => {
-                    error!(config.logger, "Ocurrió un error: {}", err);
-                    1
-                }
-            };
-
-            // Sleep for 15 seconds
-            std::thread::sleep(std::time::Duration::from_secs(5));
-        }
-
-        exit(0);
+        };
     } else {
         // Exit the program with an error code
         exit(1);
