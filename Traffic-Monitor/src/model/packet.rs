@@ -118,16 +118,28 @@ impl Packet {
 /// Convert Hex string to unicode string
 /// For example: 22:73:74:61:74:75:73:22:3a:22:73:74:61:72:74:22 -> "status":"start"
 /// Skip the colon
-fn hex_to_string(hex: &str) -> String {
+pub fn hex_to_string(hex: &str) -> String {
     let mut result = String::new();
     let mut hex = hex.to_string();
 
     hex.retain(|c| c != ':');
 
-    for i in (0..hex.len()).step_by(2) {
-        let byte = u8::from_str_radix(&hex[i..i + 2], 16).unwrap();
+    let mut chars = hex.chars();
 
-        result.push(byte as char);
+    while let Some(c) = chars.next() {
+        let mut s = String::new();
+        s.push(c);
+        s.push(match chars.next() {
+            Some(c) => c,
+            None => continue,
+        });
+
+        let c = match u8::from_str_radix(&s, 16) {
+            Ok(c) => c as char,
+            Err(_) => continue,
+        };
+
+        result.push(c);
     }
 
     result
