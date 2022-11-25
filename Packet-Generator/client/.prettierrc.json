@@ -18,9 +18,16 @@
   "parser": "html",
   "overrides": [
     {
-      "files": ["*.js", "*.jsx", "*.ts", "*.tsx"],
+      "files": ["*.js", "*.jsx"],
       "options": {
         "parser": "babel",
+        "printWidth": 80
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "options": {
+        "parser": "babel-ts",
         "printWidth": 80
       }
     },
