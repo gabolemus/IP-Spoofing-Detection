@@ -9,10 +9,10 @@ export interface PacketData {
   setEvilBit: boolean;
   sourceIP?: string;
   destinationIP: string;
-  infinitePackets: boolean;
-  packetInterval: number;
+  infinitePackets?: boolean;
+  packetInterval?: number;
   port: number;
-  payload: string;
+  data: string;
 }
 
 export interface ExtraPacketData {
