@@ -32,11 +32,17 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
             builder,
             txt_file,
             &mut pcap_packets,
-            &mut parsed_packets,
+            &parsed_packets,
+            &iter,
         );
 
         // Write the packets' data to the CSV file
-        write_to_csv_file(pcap_packets, csv_file, iter == 1, &mut parsed_packets);
+        write_to_csv_file(
+            pcap_packets,
+            csv_file,
+            iter == 1,
+            &mut parsed_packets,
+        );
 
         // Finish the progress bar
         let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
@@ -139,7 +145,8 @@ fn parse_pcap_file(
     rtshark_builder: RTSharkBuilderReady,
     mut txt_file: Option<File>,
     pcap_packets: &mut Vec<Packet>,
-    parsed_packets: &mut u32,
+    parsed_packets: &u32,
+    iter: &u32,
 ) {
     // Start a new tshark process
     let mut rtshark = rtshark_builder
@@ -154,15 +161,15 @@ fn parse_pcap_file(
         eprintln!("Error parsing tshark output: {e}");
         None
     }) {
-        // If i is less than or equal to the number of parsed packets, skip the
-        // packet
-        if i <= *parsed_packets && *parsed_packets != 0 {
+        if *iter != 1 && i <= *parsed_packets {
+            i += 1;
             continue;
         }
 
+        println!("Loop iteration: {}", i);
+
         let mut new_packet = Packet::new();
         new_packet.update_packet_number(i);
-        // println!("Packet number: {}", new_packet.packet_number);
 
         if !config.no_text_file {
             if !is_first_packet {
@@ -239,7 +246,6 @@ fn write_to_csv_file(
             }
             acc
         });
-        let mut packet_analyzed_count = 0;
 
         // Set the fields for all the packets
         for packet in &mut pcap_packets {
@@ -255,27 +261,18 @@ fn write_to_csv_file(
                 .unwrap();
         }
 
+        let mut written_packets = 0;
+
         // Write the CSV data to the file
         for packet in &pcap_packets {
-            // Skip the packet if it has already been written to the file
-            if packet.packet_number <= *parsed_packets && *parsed_packets != 0 {
-                continue;
-            }
+            written_packets += 1;
 
             let csv_data = format!("{}\n", packet.get_csv_data());
             csv_file.write_all(csv_data.as_bytes()).unwrap();
-            packet_analyzed_count += 1;
         }
 
-        // Print the number of packets written to the file
-        println!("{} paquetes han sido analizados", pcap_packets.len());
-        println!(
-            "{} paquetes han sido escritos al archivo",
-            packet_analyzed_count
-        );
-
         // Update the number of parsed packets
-        *parsed_packets = pcap_packets.len() as u32;
+        *parsed_packets += written_packets;
     }
 }
 
