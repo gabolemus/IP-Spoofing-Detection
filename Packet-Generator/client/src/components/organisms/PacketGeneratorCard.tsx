@@ -109,10 +109,10 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
       // Attempt to send infinite packets
       if (props.spoofPackets) {
         // Send infinite spoofed packets
-        sendInfiniteSpoofedPackets(extraPacket);
+        sendMultipleSpoofedPackets(extraPacket);
       } else {
         // Send infinite legitimate packets
-        sendInfiniteLegitimatePackets(extraPacket);
+        sendMultipleLegitimatePackets(extraPacket);
       }
     } else {
       changeBtnTextPerm('Enviando paquetes...');
@@ -121,26 +121,6 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
       // Manage single packet creation
       manageSinglePacket();
     }
-  };
-
-  /** Send infinite spoofed packets */
-  const sendInfiniteSpoofedPackets = async (packet: ExtraPacketData) => {
-    const response: Response = await helpers.sendMultipleSpoofedPackets(packet);
-
-    evaluateResponse(response, true);
-  };
-
-  /** Send infinite legitimate packets */
-  const sendInfiniteLegitimatePackets = async (packet: ExtraPacketData) => {
-    const response: Response = await helpers.sendMultipleLegitimatePackets({
-      ...packet,
-      packetData: {
-        ...packet.packetData,
-        setEvilBit: false,
-      },
-    });
-
-    evaluateResponse(response, true);
   };
 
   /** Manage single packet generation */
