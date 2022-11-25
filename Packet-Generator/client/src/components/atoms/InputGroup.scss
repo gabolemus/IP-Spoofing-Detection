@@ -1,0 +1,72 @@
+@import '../../../public/sass/utilities/variables';
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: stretch;
+  margin-bottom: 0.5rem;
+
+  label {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  input {
+    padding: 0.5rem;
+    border: 1px solid $dark-grey;
+    border-radius: 0.25rem;
+
+    &::placeholder {
+      color: rgb(86, 86, 86);
+    }
+  }
+
+  input[type='checkbox']:hover {
+    cursor: pointer;
+  }
+
+  // Make the text input gray if it's disabled
+  input:disabled {
+    background-color: #e0e0e0;
+    cursor: not-allowed;
+  }
+
+  textarea {
+    padding: 0.5rem;
+    border: 1px solid $dark-grey;
+    border-radius: 0.25rem;
+    min-height: 5rem;
+    resize: vertical;
+  }
+}
+
+.w-100 {
+  width: 100%;
+}
+
+.w-49 {
+  width: 49%;
+}
+
+.w-33 {
+  width: 33%;
+}
+
+.w-15 {
+  width: 15%;
+}
+
+.error-message {
+  display: flex;
+  color: rgb(214, 86, 86);
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+
+  // If the message is empty, make it occupy the same space as the text
+  &:empty:after {
+    content: '.';
+    visibility: hidden;
+  }
+}
