@@ -44,7 +44,8 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
   const [dstIPAddr, setDstIPAddr] = useState('');
   const [payload, setPayload] = useState('');
   const [pktAmount, setPktAmount] = useState(1);
-  const [pktDelay, setPktDelay] = useState(500);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_pktDelay, setPktDelay] = useState(500);
 
   // Refs
 
@@ -98,37 +99,75 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
 
   /** Send the packets */
   const sendPackets = async () => {
-    changeBtnTextPerm('Enviando paquetes...');
-
     if (props.infinitePackets) {
+      changeBtnTextPerm('Enviando paquetes indefinidamente...');
       props.setInfinitePackets(true);
-    } else {
-      props.setInfinitePackets(false);
 
       // Create the packet
-      const packet = createPacket(true);
+      const extraPacket = createPacketWithExtraData();
 
-      if (pktAmount == 1) {
-        // Attempt to send a single packet
-        if (props.spoofPackets) {
-          // Send a singl spoofed packet
-          sendSingleSpoofedPacket(packet);
-        } else {
-          // Send a single legitimate packet
-          sendSingleLegitimatePacket(packet);
-        }
+      // Attempt to send infinite packets
+      if (props.spoofPackets) {
+        // Send infinite spoofed packets
+        sendInfiniteSpoofedPackets(extraPacket);
       } else {
-        // Create the packet
-        const extraPacket = createPacketWithExtraData();
+        // Send infinite legitimate packets
+        sendInfiniteLegitimatePackets(extraPacket);
+      }
+    } else {
+      changeBtnTextPerm('Enviando paquetes...');
+      props.setInfinitePackets(false);
 
-        // Attempt to send multiple packets
-        if (props.spoofPackets) {
-          // Send multiple spoofed packets
-          sendMultipleSpoofedPackets(extraPacket);
-        } else {
-          // Send multiple legitimate packets
-          sendMultipleLegitimatePackets(extraPacket);
-        }
+      // Manage single packet creation
+      manageSinglePacket();
+    }
+  };
+
+  /** Send infinite spoofed packets */
+  const sendInfiniteSpoofedPackets = async (packet: ExtraPacketData) => {
+    const response: Response = await helpers.sendMultipleSpoofedPackets(packet);
+
+    evaluateResponse(response, true);
+  };
+
+  /** Send infinite legitimate packets */
+  const sendInfiniteLegitimatePackets = async (packet: ExtraPacketData) => {
+    const response: Response = await helpers.sendMultipleLegitimatePackets({
+      ...packet,
+      packetData: {
+        ...packet.packetData,
+        setEvilBit: false,
+      },
+    });
+
+    evaluateResponse(response, true);
+  };
+
+  /** Manage single packet generation */
+  const manageSinglePacket = async () => {
+    // Create the packet
+    const packet = createPacket(true);
+
+    if (pktAmount == 1) {
+      // Attempt to send a single packet
+      if (props.spoofPackets) {
+        // Send a singl spoofed packet
+        sendSingleSpoofedPacket(packet);
+      } else {
+        // Send a single legitimate packet
+        sendSingleLegitimatePacket(packet);
+      }
+    } else {
+      // Create the packet
+      const extraPacket = createPacketWithExtraData();
+
+      // Attempt to send multiple packets
+      if (props.spoofPackets) {
+        // Send multiple spoofed packets
+        sendMultipleSpoofedPackets(extraPacket);
+      } else {
+        // Send multiple legitimate packets
+        sendMultipleLegitimatePackets(extraPacket);
       }
     }
   };
@@ -181,7 +220,7 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
 
   /** Create a packet with extra data object */
   const createPacketWithExtraData = () => ({
-    packetCount: pktAmount,
+    packetCount: !props.infinitePackets ? pktAmount : -1,
     randomSourceIP: props.randomSourceIp,
     packetData: createPacket(true),
   });
@@ -238,6 +277,12 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
 
     // Change the text
     btn!.innerHTML = text;
+
+    // Disable the button
+    btn!.setAttribute('disabled', 'true');
+
+    // Add the btn-ok class to the button
+    btn!.classList.add('btn-ok');
   };
 
   /** Set packet payload */

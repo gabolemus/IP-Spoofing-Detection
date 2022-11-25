@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import React, { useState } from 'react';
 import CancelBtn from '../atoms/CancelBtn';
 import PacketGeneratorCard from '../organisms/PacketGeneratorCard';
 import MainPageTemplate from '../templates/MainPageTemplate';
+import { Response } from '../../helpers/interfaces';
+import helpers from '../../helpers/helpers';
 
 const PacketGeneratorPage = () => {
   // State
@@ -51,7 +54,47 @@ const PacketGeneratorPage = () => {
       setSendInfLegitPkts(false);
     }
 
+    stopSendingPackets();
     setCanStopPackets(false);
+  };
+
+  /** Stop sending packets */
+  const stopSendingPackets = async () => {
+    const response: Response = await helpers.stopSendingPackets();
+
+    evaluateResponse(response);
+  };
+
+  /** Evaluate response */
+  const evaluateResponse = (response: Response) => {
+    if (response.success) {
+      changeBtnTextTemp(
+        'Envío de paquetes detenido exitosamente',
+        'Detener el envío de paquetes'
+      );
+    } else {
+      changeBtnTextTemp(
+        'Error al detener el envío de paquetes',
+        'Detener el envío de paquetes'
+      );
+    }
+  };
+
+  /** Change the text of the button temporarily */
+  const changeBtnTextTemp = (text: string, permanentText: string) => {
+    // Get the button by its id
+    const btn = document.getElementById('stop-button');
+
+    // Disable the button
+    btn!.setAttribute('disabled', 'true');
+
+    // Change the text
+    btn!.innerHTML = text;
+
+    // After 2.5 seconds, change the text back
+    setTimeout(() => {
+      btn!.innerHTML = permanentText;
+    }, 2500);
   };
 
   return (
