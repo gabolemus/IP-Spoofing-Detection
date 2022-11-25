@@ -9,10 +9,22 @@ pub fn hex_to_string(hex: &str) -> String {
 
     hex.retain(|c| c != ':');
 
-    for i in (0..hex.len()).step_by(2) {
-        let byte = u8::from_str_radix(&hex[i..i + 2], 16).unwrap();
+    let mut chars = hex.chars();
 
-        result.push(byte as char);
+    while let Some(c) = chars.next() {
+        let mut s = String::new();
+        s.push(c);
+        s.push(match chars.next() {
+            Some(c) => c,
+            None => continue,
+        });
+
+        let c = match u8::from_str_radix(&s, 16) {
+            Ok(c) => c as char,
+            Err(_) => continue,
+        };
+
+        result.push(c);
     }
 
     result
