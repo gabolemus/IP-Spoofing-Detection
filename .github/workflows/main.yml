@@ -21,6 +21,22 @@ jobs:
           docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest .
       - name: Push image to Docker Hub
         run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest
+  
+  traffic-generator-frontend:
+    name: Publish latest TCP/IP traffic generator image
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build TCP/IP Traffic Generator Frontend image
+        run: |
+          cd Packet-Generator/client
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/packet-generator-frontend:latest .
+      - name: Push image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator-frontend:latest
 
   traffic-monitor-image:
     name: Publish latest TCP/IP traffic monitor image
