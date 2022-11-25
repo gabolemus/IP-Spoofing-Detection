@@ -106,110 +106,102 @@ const PacketGeneratorCard = (props: PacketGeneratorCardProps) => {
       props.setInfinitePackets(false);
 
       // Create the packet
-      const packet: PacketData = {
-        setEvilBit: true,
-        ...(srcIPAddr !== '' &&
-          !props.randomSourceIp && { sourceIP: srcIPAddr }),
-        destinationIP: dstIPAddr,
-        port: 43390,
-        data: payload,
-      };
+      const packet = createPacket(true);
 
       if (pktAmount == 1) {
         // Attempt to send a single packet
         if (props.spoofPackets) {
-          // Send spoofed packet
-          const response: Response = await helpers.sendSingleSpoofedPacket(
-            packet
-          );
-
-          if (response.success) {
-            changeBtnTextTemp(
-              'Paquete enviado exitosamente',
-              'Enviar paquetes'
-            );
-          } else {
-            changeBtnTextTemp('Error al enviar el paquete', 'Enviar paquetes');
-          }
+          // Send a singl spoofed packet
+          sendSingleSpoofedPacket(packet);
         } else {
-          // Send packet
-          const response: Response = await helpers.sendSingleLegitimatePacket({
-            ...packet,
-            setEvilBit: false,
-          });
-
-          if (response.success) {
-            changeBtnTextTemp(
-              'Paquete enviado exitosamente',
-              'Enviar paquetes'
-            );
-          } else {
-            changeBtnTextTemp('Error al enviar el paquete', 'Enviar paquetes');
-          }
+          // Send a single legitimate packet
+          sendSingleLegitimatePacket(packet);
         }
       } else {
+        // Create the packet
+        const extraPacket = createPacketWithExtraData();
+
         // Attempt to send multiple packets
         if (props.spoofPackets) {
-          // Create the packet
-          const packet: ExtraPacketData = {
-            packetCount: pktAmount,
-            randomSourceIP: props.randomSourceIp,
-            packetData: {
-              setEvilBit: true,
-              ...(srcIPAddr !== '' && { sourceIP: srcIPAddr }),
-              destinationIP: dstIPAddr,
-              port: 43390,
-              data: payload,
-            },
-          };
-
-          // Send multiple packets
-          const response: Response = await helpers.sendMultipleSpoofedPackets(
-            packet
-          );
-
-          if (response.success) {
-            changeBtnTextTemp(
-              'Paquetes enviados exitosamente',
-              'Enviar paquetes'
-            );
-          } else {
-            changeBtnTextTemp(
-              'Error al enviar los paquetes',
-              'Enviar paquetes'
-            );
-          }
+          // Send multiple spoofed packets
+          sendMultipleSpoofedPackets(extraPacket);
         } else {
-          // Create the packet
-          const packet: ExtraPacketData = {
-            packetCount: pktAmount,
-            randomSourceIP: props.randomSourceIp,
-            packetData: {
-              setEvilBit: false,
-              ...(srcIPAddr !== '' && { sourceIP: srcIPAddr }),
-              destinationIP: dstIPAddr,
-              port: 43390,
-              data: payload,
-            },
-          };
-
-          // Send multiple packets
-          const response: Response =
-            await helpers.sendMultipleLegitimatePackets(packet);
-
-          if (response.success) {
-            changeBtnTextTemp(
-              'Paquetes enviados exitosamente',
-              'Enviar paquetes'
-            );
-          } else {
-            changeBtnTextTemp(
-              'Error al enviar los paquetes',
-              'Enviar paquetes'
-            );
-          }
+          // Send multiple legitimate packets
+          sendMultipleLegitimatePackets(extraPacket);
         }
       }
+    }
+  };
+
+  /** Send a single spoofed packet */
+  const sendSingleSpoofedPacket = async (packet: PacketData) => {
+    const response: Response = await helpers.sendSingleSpoofedPacket(packet);
+
+    evaluateResponse(response, false);
+  };
+
+  /** Send a single legitimate packet */
+  const sendSingleLegitimatePacket = async (packet: PacketData) => {
+    const response: Response = await helpers.sendSingleLegitimatePacket({
+      ...packet,
+      setEvilBit: false,
+    });
+
+    evaluateResponse(response, false);
+  };
+
+  /** Send multiple spoofed packets */
+  const sendMultipleSpoofedPackets = async (packet: ExtraPacketData) => {
+    const response: Response = await helpers.sendMultipleSpoofedPackets(packet);
+
+    evaluateResponse(response, true);
+  };
+
+  /** Send multiple legitimate packets */
+  const sendMultipleLegitimatePackets = async (packet: ExtraPacketData) => {
+    const response: Response = await helpers.sendMultipleLegitimatePackets({
+      ...packet,
+      packetData: {
+        ...packet.packetData,
+        setEvilBit: false,
+      },
+    });
+
+    evaluateResponse(response, true);
+  };
+
+  /** Create a packet object */
+  const createPacket = (setEvilBit: boolean) => ({
+    setEvilBit,
+    ...(srcIPAddr !== '' && !props.randomSourceIp && { sourceIP: srcIPAddr }),
+    destinationIP: dstIPAddr,
+    port: 43390,
+    data: payload,
+  });
+
+  /** Create a packet with extra data object */
+  const createPacketWithExtraData = () => ({
+    packetCount: pktAmount,
+    randomSourceIP: props.randomSourceIp,
+    packetData: createPacket(true),
+  });
+
+  /** Evaluate response */
+  const evaluateResponse = (response: Response, multiplePkts: boolean) => {
+    if (response.success) {
+      changeBtnTextTemp(
+        !multiplePkts
+          ? 'Paquete enviado exitosamente'
+          : 'Paquetes enviados exitosamente',
+        'Enviar paquetes'
+      );
+    } else {
+      changeBtnTextTemp(
+        !multiplePkts
+          ? 'Error al enviar el paquete'
+          : 'Error al enviar los paquetes',
+        'Enviar paquetes'
+      );
     }
   };
 
