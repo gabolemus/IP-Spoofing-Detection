@@ -37,12 +37,7 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
         );
 
         // Write the packets' data to the CSV file
-        write_to_csv_file(
-            pcap_packets,
-            csv_file,
-            iter == 1,
-            &mut parsed_packets,
-        );
+        write_to_csv_file(pcap_packets, csv_file, iter == 1, &mut parsed_packets);
 
         // Finish the progress bar
         let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
