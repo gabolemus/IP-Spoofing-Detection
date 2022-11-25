@@ -30,7 +30,7 @@ const sendSingleSpoofedPacket = async (
   packet: PacketData
 ): Promise<Response> => {
   // Send the POST request
-  return await sendPostRequest('single-spoofed/', packet);
+  return await sendPostRequest('single-spoofed', packet);
 };
 
 /** POST request to send multiple spoofed packets */
@@ -38,13 +38,13 @@ const sendMultipleSpoofedPackets = async (
   packet: ExtraPacketData
 ): Promise<Response> => {
   // Send the POST request
-  return await sendPostRequest('multiple-spoofed/start/', packet);
+  return await sendPostRequest('multiple-spoofed/start', packet);
 };
 
 /** POST request to stop sending multiple spoofed or legitimate packets */
 const stopSendingPackets = async (): Promise<Response> => {
   // Send the POST request
-  return await sendPostRequest('multiple-spoofed/stop/', {});
+  return await sendPostRequest('multiple-spoofed/stop', {});
 };
 
 /** POST request to send a single legitimate packet */
@@ -52,7 +52,7 @@ const sendSingleLegitimatePacket = async (
   packet: PacketData
 ): Promise<Response> => {
   // Send the POST request
-  return await sendPostRequest('single-legitimate/', packet);
+  return await sendPostRequest('single-spoofed', packet);
 };
 
 /** POST request to send multiple legitimate packets */
@@ -60,7 +60,7 @@ const sendMultipleLegitimatePackets = async (
   packet: ExtraPacketData
 ): Promise<Response> => {
   // Send the POST request
-  return await sendPostRequest('multiple-legitimate/start/', packet);
+  return await sendPostRequest('multiple-spoofed/start', packet);
 };
 
 /** Send a general POST request to the specified endpoint */
@@ -70,7 +70,6 @@ const sendPostRequest = async (
 ): Promise<Response> => {
   // Create the response object from the provided packet data
   const response = await axios.post(`http://localhost:8080/${endpoint}`, data);
-  // console.log(response.data);
 
   // Check the response code
   if (response.status === 200) {
