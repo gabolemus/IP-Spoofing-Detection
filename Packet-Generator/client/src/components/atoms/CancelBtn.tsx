@@ -4,13 +4,19 @@ import React from 'react';
 interface CancelBtnProps {
   /** The title of the button */
   title: string;
+  /** Onclick function */
+  onClick: () => void;
   /** Whether the button is disabled or not */
   disabled?: boolean;
 }
 
 const CancelBtn = (props: CancelBtnProps) => {
   return (
-    <button className="stop-button" disabled={props.disabled}>
+    <button
+      className="stop-button"
+      disabled={props.disabled}
+      onClick={props.onClick}
+    >
       {props.title}
     </button>
   );
