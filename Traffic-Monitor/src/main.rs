@@ -7,6 +7,7 @@ fn main() {
     env::set_var("RUST_BACKTRACE", "1");
 
     // Todo: rewrite the csv file in case a new packet has extra fields
+    // Todo: Read only the last part of the pcap file after the first run
 
     // Parse the command line argumets into an `Option<Config>` struct
     if let Some(config) = parse_cmd_args() {
