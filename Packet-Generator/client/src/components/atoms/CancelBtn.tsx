@@ -14,6 +14,7 @@ const CancelBtn = (props: CancelBtnProps) => {
   return (
     <button
       className="stop-button"
+      id="stop-button"
       disabled={props.disabled}
       onClick={props.onClick}
     >
