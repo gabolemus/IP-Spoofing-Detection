@@ -7,15 +7,20 @@ use pnet::util::MacAddr;
 use pnet::{datalink, packet::tcp::TcpOption};
 use pnet::{datalink::NetworkInterface as NetInt, packet::Packet};
 use rand::Rng;
-use std::io;
+use std::error::Error;
+use std::thread;
+use std::time::Duration;
 
-use crate::api::DESTINATION_IP_ADDRESS;
+use crate::api::routes::THREAD_COUNT;
+use crate::api::{DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS};
 
 /// Send a single legitimate packet
 pub fn send_single_legitimate_packet(
-    destination_ip: Option<&str>,
+    destination_ip: &String,
     randomize_source_ip: bool,
-) -> Option<io::Result<()>> {
+    packet_count: Option<u32>,
+    thread_number: u32,
+) -> Result<&'static str, Box<dyn Error>> {
     // Get the default network interface
     let default_interface = get_default_network_interface();
     let interface = datalink::interfaces()
@@ -62,10 +67,10 @@ pub fn send_single_legitimate_packet(
             .ip()
             .to_string()
     };
-    let dest_ip = match destination_ip {
-        Some(ip) => ip,
-        None => DESTINATION_IP_ADDRESS,
-        // None => "142.250.64.142",
+    let dest_ip = if destination_ip.is_empty() {
+        DESTINATION_IP_ADDRESS.to_string()
+    } else {
+        destination_ip.to_string()
     };
 
     // Create the packet
@@ -81,10 +86,99 @@ pub fn send_single_legitimate_packet(
     );
 
     // Log the packet
-    println!("Paquete único legítimo: {} --> {}", src_ip, dest_ip);
+    match packet_count {
+        Some(count) => println!(
+            "Paquete legítimo #{} - Hilo #{}: {} --> {}",
+            count, thread_number, src_ip, dest_ip
+        ),
+        None => println!("Paquete único legítimo: {} --> {}", src_ip, dest_ip),
+    }
 
     // Send the packet
-    sender.send_to(packet.packet(), None)
+    sender.send_to(packet.packet(), None);
+
+    Ok("Paquete legítimo enviado")
+}
+
+/// Send multiple legitimate packets
+/// This funcion calls `send_single_legitimate_packet` multiple times
+pub fn send_multiple_legitimate_packets(
+    destination_ip: String,
+    randomize_source_ip: bool,
+    packet_count: i32,
+) -> Result<&'static str, Box<dyn Error>> {
+    // Create a new thread
+    thread::spawn(move || {
+        unsafe {
+            THREAD_COUNT += 1;
+        }
+
+        let mut i = 0;
+
+        // If the packet count is -1, send packets indefinitely every 1 second
+        if packet_count == -1 {
+            loop {
+                unsafe {
+                    if STOP_INFINITE_PACKETS {
+                        println!("Envío de paquetes interrumpido");
+                        println!("{} paquetes han sido enviados.", i);
+                        break;
+                    }
+                }
+
+                i += 1;
+
+                send_single_legitimate_packet(
+                    &destination_ip,
+                    randomize_source_ip,
+                    Some(i),
+                    // Todo: fix showing wrong thread number when creating multiple threads
+                    unsafe { THREAD_COUNT },
+                )
+                .unwrap();
+
+                // Wait 500 milliseconds
+                thread::sleep(Duration::from_millis(500));
+            }
+        } else {
+            // Send the specified number of packets
+            for _ in 1..packet_count + 1 {
+                unsafe {
+                    if STOP_INFINITE_PACKETS {
+                        println!(
+                            "Envío de paquetes interrumpido en el hilo #{}",
+                            THREAD_COUNT
+                        );
+                        break;
+                    }
+                }
+
+                i += 1;
+
+                send_single_legitimate_packet(
+                    &destination_ip,
+                    randomize_source_ip,
+                    Some(i),
+                    // Todo: fix showing wrong thread number when creating multiple threads
+                    unsafe { THREAD_COUNT },
+                )
+                .unwrap();
+
+                // Wait 500 milliseconds
+                thread::sleep(Duration::from_millis(500));
+            }
+
+            println!("{} paquetes han sido enviados en el hilo #{}", i, unsafe {
+                THREAD_COUNT
+            });
+        }
+
+        unsafe {
+            THREAD_COUNT -= 1;
+        }
+    });
+
+    Ok("Hilo de envío de paquetes legítimos iniciado")
 }
 
 /// Get the default network interface
