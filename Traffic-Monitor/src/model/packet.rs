@@ -7,7 +7,7 @@ pub struct Packet {
     /// Packet number
     pub packet_number: u32,
 
-    /// Wether the packet is spoofed, for the test data, the packets with the
+    /// Whether the packet is spoofed, for the test data, the packets with the
     /// field "ip.flags.rb" (reserved bit) set to 1 are spoofed.
     ///
     /// This does not reflect reality, as this field is not used in real

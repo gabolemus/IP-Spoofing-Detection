@@ -146,7 +146,7 @@ pub struct MultipleRequestParams {
     /// Wait time between packets in milliseconds.
     #[serde(rename = "waitTime")]
     pub wait_time: Option<u64>,
-    /// Wether to randomize the source IP address.
+    /// Whether to randomize the source IP address.
     #[serde(rename = "randomSourceIP")]
     pub random_source_ip: Option<bool>,
 }
