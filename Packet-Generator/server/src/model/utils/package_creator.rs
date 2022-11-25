@@ -322,8 +322,8 @@ fn create_packet(
         let packet = TCPIPv4Packet::new(
             get_ipv4_addr(config.source_ip),
             get_ipv4_addr(config.destination_ip),
-            // Some(config.data.clone()), // Payload to be sent
-            None, // Send no payload
+            Some(config.data.clone()), // Payload to be sent
+            // None, // Send no payload
             None,
             config.port,
             spoof_packet,
