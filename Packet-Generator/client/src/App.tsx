@@ -1,11 +1,8 @@
 import React from 'react';
+import PacketGeneratorPage from './components/pages/PacketGeneratorPage';
 
 function App() {
-  return (
-    <div className="app">
-      <h1>Packet Generator</h1>
-    </div>
-  );
+  return <PacketGeneratorPage />;
 }
 
 export default App;
