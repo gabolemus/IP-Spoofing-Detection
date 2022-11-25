@@ -6,6 +6,8 @@ interface NuberInputGroupProps {
   label: string;
   /** Width of the input group */
   width: number;
+  /** Function to set the packet count */
+  setCount: (e: React.ChangeEvent<HTMLInputElement>) => void;
   /** Whether the input is disabled or not */
   disabled?: boolean;
   /** Default value of the input */
@@ -35,6 +37,8 @@ const NumberInputGroup = (props: NuberInputGroupProps) => {
         onChange={(e) => {
           const value = correctValue(parseInt(e.target.value));
           e.target.value = value.toString();
+
+          props.setCount(e);
         }}
       />
       <small className="error-message" />

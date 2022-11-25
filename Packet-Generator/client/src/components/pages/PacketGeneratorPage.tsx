@@ -50,7 +50,6 @@ const PacketGeneratorPage = () => {
     if (sendInfLegitPkts) {
       setSendInfLegitPkts(false);
     }
-    
 
     setCanStopPackets(false);
   };
@@ -61,9 +60,13 @@ const PacketGeneratorPage = () => {
         <h1 className="title">Generador de Paquetes TCP/IP</h1>
         <PacketGeneratorCard
           title="Envío de Paquetes Spoofeados"
+          cardId={1}
+          spoofPackets={true}
           setInfinitePackets={setCanStopPackets}
           infinitePackets={sendInfSpoofedPkts}
-          toggleInfinitePackets={() => setSendInfSpoofedPkts(!sendInfSpoofedPkts)}
+          toggleInfinitePackets={() =>
+            setSendInfSpoofedPkts(!sendInfSpoofedPkts)
+          }
           randomSourceIp={rndmSpoofedSrcIP}
           toggleRandomSourceIp={() => setRndmSpoofedSrcIP(!rndmSpoofedSrcIP)}
           infinitePacketsToggleRef={infSpoofedPktsRef}
@@ -71,6 +74,8 @@ const PacketGeneratorPage = () => {
         />
         <PacketGeneratorCard
           title="Envío de Paquetes Legítimos"
+          cardId={2}
+          spoofPackets={false}
           setInfinitePackets={setCanStopPackets}
           infinitePackets={sendInfLegitPkts}
           toggleInfinitePackets={() => setSendInfLegitPkts(!sendInfLegitPkts)}

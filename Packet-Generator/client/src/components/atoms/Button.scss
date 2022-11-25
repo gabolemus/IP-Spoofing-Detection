@@ -9,7 +9,7 @@
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.5s ease-in-out;
   margin-bottom: 1.5rem;
 
   &:hover {
@@ -55,6 +55,20 @@
 
   &:disabled {
     background-color: rgb(229, 133, 133);
+    cursor: not-allowed;
+  }
+}
+
+.btn-ok {
+  background-color: #6db570;
+  color: $white;
+
+  &:hover {
+    background-color: #5cb85c;
+  }
+
+  &:disabled {
+    background-color: #5cb85c;
     cursor: not-allowed;
   }
 }
