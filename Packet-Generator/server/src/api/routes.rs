@@ -1,16 +1,11 @@
 /// This file contains the routes for the API.
-use crate::{
-    api::{ErrorResponse, GeneralResponse, GenericResponse, SpoofingResponse},
-    model::{
-        ip_to_string,
-        networking::{get_local_ip, socket::SocketError},
-        utils::{
-            send_multiple_packets, send_single_legitimate_packet, MultipleRequestParams,
-            SingleRequestParams,
-        },
-    },
-    send_single_packet,
-};
+use crate::api::{ErrorResponse, GeneralResponse, GenericResponse, SpoofingResponse};
+use crate::model::ip_to_string;
+use crate::model::networking::{get_local_ip, socket::SocketError};
+use crate::model::utils::legitimate_packets::send_multiple_legitimate_packets;
+use crate::model::utils::{send_multiple_packets, send_single_legitimate_packet};
+use crate::model::utils::{MultipleRequestParams, SingleRequestParams};
+use crate::send_single_packet;
 use actix_web::{get, http::header::ContentType, post, web, HttpResponse, Responder};
 
 // Declare the ip address and port globally
@@ -63,7 +58,10 @@ pub async fn single_request(params: web::Json<SingleRequestParams>) -> impl Resp
                 None => true,
             };
 
-            println!("Paquete único spoofeado: {} --> {}", source_ip, destination_ip);
+            println!(
+                "Paquete único spoofeado: {} --> {}",
+                source_ip, destination_ip
+            );
 
             // Construct the response
             let response = SpoofingResponse {
@@ -226,34 +224,92 @@ pub async fn multiple_requests(
 /// Route that generates legitimate packets.
 #[post("/single-legitimate")]
 pub async fn single_legitimate_request() -> impl Responder {
-    match send_single_legitimate_packet(None, false) {
-        Some(_) => HttpResponse::Ok()
+    let dest_ip = String::new();
+
+    match send_single_legitimate_packet(&dest_ip, false, None, 0) {
+        Ok(_) => HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(GenericResponse {
                 message: "Un paquete legítimo ha sido enviado.".to_string(),
             }),
-        None => HttpResponse::InternalServerError()
+        Err(err) => HttpResponse::InternalServerError()
             .content_type(ContentType::json())
             .json(ErrorResponse {
-                error: format!("Error al enviar el paquete legítimo."),
+                error: format!("Error al enviar el paquete legítimo: {}", err),
             }),
     }
 }
 
 /// Route that generates multiple legitimate packets.
 #[post("/multiple-legitimate/{stop}")]
-pub async fn multiple_legitimate_requests(path: web::Path<String>) -> impl Responder {
+pub async fn multiple_legitimate_requests(
+    path: web::Path<String>,
+    params: web::Json<MultipleRequestParams>,
+) -> impl Responder {
     if path.into_inner() == "stop" {
+        println!("Deteniendo el envío de paquetes...");
+
+        unsafe {
+            STOP_INFINITE_PACKETS = true;
+            SENDING_INFINITE_PACKETS = false;
+        }
+
+        // Return a response
         HttpResponse::Ok()
             .content_type(ContentType::json())
             .json(GenericResponse {
-                message: format!("Hello!"),
+                message: "Envío de paquetes infinitos detenido.".to_string(),
             })
     } else {
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .json(GenericResponse {
-                message: format!("Hello!"),
-            })
+        unsafe {
+            if !SENDING_INFINITE_PACKETS && THREAD_COUNT < 10 {
+                STOP_INFINITE_PACKETS = false;
+                SENDING_INFINITE_PACKETS = match params.packet_count {
+                    Some(count) => count == -1,
+                    None => false,
+                };
+
+                let randomize_source_ip = match &params.random_source_ip {
+                    Some(randomize_source_ip) => *randomize_source_ip,
+                    None => false,
+                };
+
+                let packet_count_msg = match params.packet_count {
+                    Some(-1) => "Enviando una cantidad indefinida de paquetes...".to_string(),
+                    Some(count) => format!("Enviando {} paquetes...", count),
+                    None => "Enviando una cantidad indefinida de paquetes...".to_string(),
+                };
+                let packet_count = params.packet_count.unwrap_or(1);
+                println!("Múltiples paquetes solicitados. {}", packet_count_msg);
+
+                // Construct the response
+                let response = SpoofingResponse {
+                    message: "Múltiples paquetes enviados.".to_string(),
+                    packet_count,
+                };
+
+                // match send_multiple_legitimate_packets(destination_ip, randomize_source_ip, number_of_packets)
+                match send_multiple_legitimate_packets(
+                    String::new(),
+                    randomize_source_ip,
+                    packet_count,
+                ) {
+                    Ok(_) => HttpResponse::Ok()
+                        .content_type(ContentType::json())
+                        .json(response),
+                    Err(err) => HttpResponse::InternalServerError()
+                        .content_type(ContentType::json())
+                        .json(ErrorResponse {
+                            error: format!("Error al enviar los paquetes legítimos: {}", err),
+                        }),
+                }
+            } else {
+                HttpResponse::Ok()
+                .content_type(ContentType::json())
+                .json(GenericResponse {
+                    message: format!("No es posible enviar múltiples paquetes mientras se están enviando paquetes actualmente. Puede detener el envío de paquetes enviando una solicitud POST a la ruta http://{}:{}/multiple-legitimate/stop si así lo desea.", API_IP_ADDRESS, PORT),
+                })
+            }
+        }
     }
 }

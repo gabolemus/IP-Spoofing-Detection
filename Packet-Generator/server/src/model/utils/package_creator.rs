@@ -146,7 +146,7 @@ pub struct MultipleRequestParams {
     /// Wait time between packets in milliseconds.
     #[serde(rename = "waitTime")]
     pub wait_time: Option<u64>,
-    /// Wether to randomize the source IP address.
+    /// Whether to randomize the source IP address.
     #[serde(rename = "randomSourceIP")]
     pub random_source_ip: Option<bool>,
 }
@@ -322,8 +322,8 @@ fn create_packet(
         let packet = TCPIPv4Packet::new(
             get_ipv4_addr(config.source_ip),
             get_ipv4_addr(config.destination_ip),
-            // Some(config.data.clone()), // Payload to be sent
-            None, // Send no payload
+            Some(config.data.clone()), // Payload to be sent
+            // None, // Send no payload
             None,
             config.port,
             spoof_packet,

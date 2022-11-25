@@ -1,0 +1,6 @@
+# Ignore files for the ReactJS project
+node_modules
+*.log
+.eslintrc.json
+.gitignore
+.prettierrc.json
