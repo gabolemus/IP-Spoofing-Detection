@@ -11,6 +11,9 @@ RUN yarn install
 # Bundle app source
 COPY . .
 
+# Generate the CSS with Sass
+RUN yarn node-sass ./public/sass/styles.scss ./public/css/styles.css --output-style compressed
+
 # Build app
 RUN yarn build
 

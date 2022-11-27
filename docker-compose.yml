@@ -6,7 +6,7 @@ services:
     image: gabolemus/packet-generator
     container_name: packet-generator-backend
     ports:
-      - 8081:8080
+      - 8080:8080
 
   packet-generator-frontend:
     image: gabolemus/packet-generator-frontend
