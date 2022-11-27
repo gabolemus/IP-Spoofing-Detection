@@ -1,2 +1,8 @@
 # Test Jupyter notebooks
 *test*.ipynb
+
+# Test Python scripts
+*test*.py
+
+# Virtual environments
+.env
