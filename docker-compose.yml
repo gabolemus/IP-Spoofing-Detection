@@ -21,7 +21,7 @@ services:
     container_name: traffic-capture
     network_mode: "host"
     volumes:
-      - ./tcpdump:/tcpdump
+      - ./Network-Analysis/tcpdump:/tcpdump
     command: -i any -w /tcpdump/network-traffic.pcap
     depends_on:
       - packet-generator-backend
@@ -30,8 +30,8 @@ services:
     image: gabolemus/packet-parser
     container_name: packet-parser
     volumes:
-      - ./tcpdump:/tcpdump
-      - ./traffic-analysis:/traffic-analysis
+      - ./Network-Analysis/tcpdump:/tcpdump
+      - ./Network-Analysis/traffic-analysis:/traffic-analysis
     depends_on:
       - packet-generator-backend
       - tcpdump
