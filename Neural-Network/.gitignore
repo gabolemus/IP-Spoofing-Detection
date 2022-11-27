@@ -4,5 +4,8 @@
 # Test Python scripts
 *test*.py
 
+# Neural network tests
+NN-Tests/
+
 # Virtual environments
 .env
