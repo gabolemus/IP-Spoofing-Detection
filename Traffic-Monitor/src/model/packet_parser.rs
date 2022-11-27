@@ -250,6 +250,12 @@ fn write_to_csv_file(
         // Write the CSV header to the file if the file doesn't exist and if it
         // has been written to yet
         if !csv_file.metadata().unwrap().len() > 0 && write_header {
+            // Write the separator to the file
+            csv_file
+                .write_all("sep=|;\n".as_bytes())
+                .unwrap_or_else(|e| panic!("Error writing to file: {e}"));
+
+            // Write the header to the file
             let csv_header = pcap_packets[0].get_csv_header();
             csv_file
                 .write_all(format!("{}\n", csv_header).as_bytes())
