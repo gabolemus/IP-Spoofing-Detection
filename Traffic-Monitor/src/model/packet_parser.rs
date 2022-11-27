@@ -14,6 +14,7 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     // value is used to skip the packets that have already been parsed
     let mut parsed_packets: u32 = 0;
     let mut iter = 1;
+    let mut write_header = true;
 
     loop {
         // Get runner configuration
@@ -37,7 +38,12 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
         );
 
         // Write the packets' data to the CSV file
-        write_to_csv_file(pcap_packets, csv_file, iter == 1, &mut parsed_packets);
+        write_to_csv_file(
+            pcap_packets,
+            csv_file,
+            &mut write_header,
+            &mut parsed_packets,
+        );
 
         // Finish the progress bar
         let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
@@ -103,7 +109,14 @@ pub fn get_runner_config(
 
     // If it's the first iteration, create or overwrite the file
     let csv_file = if iteration == 1 {
-        File::create(format!("{}.csv", file_name))?
+        let mut file = File::create(format!("{}.csv", file_name)).unwrap();
+
+        // Write the separator to the file
+        file.write_all("sep=|\n".as_bytes())
+            .unwrap_or_else(|e| panic!("Error writing to file: {e}"));
+
+        // Return the created file
+        file
     } else {
         // If the file already exists, don't overwrite it
         OpenOptions::new()
@@ -161,7 +174,7 @@ fn parse_pcap_file(
             continue;
         }
 
-        println!("Loop iteration: {}", i);
+        println!("Packet #{} analyzed", i);
 
         let mut new_packet = Packet::new();
         new_packet.update_packet_number(i);
@@ -229,7 +242,7 @@ fn parse_pcap_file(
 fn write_to_csv_file(
     mut pcap_packets: Vec<Packet>,
     mut csv_file: File,
-    write_header: bool,
+    write_header: &mut bool,
     parsed_packets: &mut u32,
 ) {
     if pcap_packets.len() > 0 {
@@ -249,17 +262,15 @@ fn write_to_csv_file(
 
         // Write the CSV header to the file if the file doesn't exist and if it
         // has been written to yet
-        if !csv_file.metadata().unwrap().len() > 0 && write_header {
-            // Write the separator to the file
-            csv_file
-                .write_all("sep=|;\n".as_bytes())
-                .unwrap_or_else(|e| panic!("Error writing to file: {e}"));
-
+        if *write_header {
             // Write the header to the file
             let csv_header = pcap_packets[0].get_csv_header();
             csv_file
                 .write_all(format!("{}\n", csv_header).as_bytes())
                 .unwrap();
+
+            // Set the write header flag to false
+            *write_header = false;
         }
 
         let mut written_packets = 0;
