@@ -5,7 +5,7 @@
 *test*.py
 
 # Neural network tests
-NN-Tests/
+*Tests*/
 
 # Virtual environments
 .env
