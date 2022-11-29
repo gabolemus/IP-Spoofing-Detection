@@ -40,4 +40,4 @@ services:
       - -o
       - /traffic-analysis/
       - -t
-      - '5'
+      - '1'
