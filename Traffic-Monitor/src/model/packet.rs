@@ -58,9 +58,7 @@ impl Packet {
         fields.push("frame.encap_type".to_string());
         fields.push("frame.len".to_string());
         fields.push("frame.number".to_string());
-        fields.push("frame.offset_shift".to_string());
         fields.push("frame.protocols".to_string());
-        // fields.push("frame.time".to_string());
         fields.push("frame.time_delta".to_string());
         fields.push("frame.time_delta_displayed".to_string());
         fields.push("frame.time_epoch".to_string());
