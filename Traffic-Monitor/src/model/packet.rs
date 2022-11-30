@@ -184,29 +184,6 @@ impl Packet {
         fields.push("tcp.window_size".to_string());
         fields.push("tcp.window_size_scalefactor".to_string());
 
-        // UDP fields
-        fields.push("udp.checksum".to_string());
-        fields.push("udp.dstport".to_string());
-        fields.push("udp.length".to_string());
-        fields.push("udp.length.bad".to_string());
-        fields.push("udp.length.bad_zero".to_string());
-        fields.push("udp.payload".to_string());
-        fields.push("udp.pdu.size".to_string());
-        fields.push("udp.port".to_string());
-        fields.push("udp.possible_traceroute".to_string());
-        fields.push("udp.proc.dstcmd".to_string());
-        fields.push("udp.proc.dstpid".to_string());
-        fields.push("udp.proc.dstuid".to_string());
-        fields.push("udp.proc.dstuname".to_string());
-        fields.push("udp.proc.srccmd".to_string());
-        fields.push("udp.proc.srcpid".to_string());
-        fields.push("udp.proc.srcuid".to_string());
-        fields.push("udp.proc.srcuname".to_string());
-        fields.push("udp.srcport".to_string());
-        fields.push("udp.stream".to_string());
-        fields.push("udp.time_delta".to_string());
-        fields.push("udp.time_relative".to_string());
-
         // HTTP fields
         fields.push("http.request.full_uri".to_string());
         fields.push("http.request".to_string());
