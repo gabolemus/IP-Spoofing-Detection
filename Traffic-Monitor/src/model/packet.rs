@@ -55,7 +55,6 @@ impl Packet {
         // Add the metadata fields
         // Packet frame fields
         fields.push("frame.cap_len".to_string());
-        fields.push("frame.encap_type".to_string());
         fields.push("frame.len".to_string());
         fields.push("frame.number".to_string());
         fields.push("frame.protocols".to_string());
