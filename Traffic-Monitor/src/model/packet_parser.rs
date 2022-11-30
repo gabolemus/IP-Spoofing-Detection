@@ -209,8 +209,8 @@ fn parse_pcap_file(
                         );
                     }
 
-                    // Add the data to the packet
-                    new_packet.add_metadata(metadata.name(), metadata.value());
+                    // Add the data to the packet while replacing "|" with ";"
+                    new_packet.add_metadata(metadata.name(), metadata.value().replace("|", ";").as_str());
                 } else {
                     if !config.no_text_file {
                         // Write the data to the text file
