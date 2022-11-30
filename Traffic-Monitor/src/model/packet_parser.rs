@@ -174,7 +174,7 @@ fn parse_pcap_file(
             continue;
         }
 
-        println!("Packet #{} analyzed", i);
+        println!("Paquete #{} analizado", i);
 
         let mut new_packet = Packet::new();
         new_packet.update_packet_number(i);
@@ -247,13 +247,14 @@ fn write_to_csv_file(
 ) {
     if pcap_packets.len() > 0 {
         // Determine the vector with more fields out of all the packets with a closure
-        let temp_packets = pcap_packets.clone();
-        let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
-            if packet.fields.len() > acc.len() {
-                acc = packet.fields.clone();
-            }
-            acc
-        });
+        // let temp_packets = pcap_packets.clone();
+        // let all_fields = temp_packets.iter().fold(Vec::new(), |mut acc, packet| {
+        //     if packet.fields.len() > acc.len() {
+        //         acc = packet.fields.clone();
+        //     }
+        //     acc
+        // });
+        let all_fields = pcap_packets[0].get_fields_names();
 
         // Set the fields for all the packets
         for packet in &mut pcap_packets {
