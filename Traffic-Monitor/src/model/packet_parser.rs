@@ -200,33 +200,31 @@ fn parse_pcap_file(
                         // Write the data to the text file
                         write_to_text_file(
                             &mut txt_file,
-                            format!(
+                            &format!(
                                 "{}: {}\n",
                                 metadata.name(),
-                                remove_new_lines(hex_to_string(metadata.value().trim()).as_str())
-                            )
-                            .as_str(),
+                                remove_new_lines(&hex_to_string(metadata.value().trim()))
+                            ),
                         );
                     }
 
                     // Add the data to the packet while replacing "|" with ";"
-                    new_packet.add_metadata(metadata.name(), metadata.value().replace("|", ";").as_str());
+                    new_packet.add_metadata(metadata.name(), &metadata.value().replace("|", ";"));
                 } else {
                     if !config.no_text_file {
                         // Write the data to the text file
                         write_to_text_file(
                             &mut txt_file,
-                            format!(
+                            &format!(
                                 "{}: {}\n",
                                 metadata.name(),
-                                remove_new_lines(metadata.value().trim())
-                            )
-                            .as_str(),
+                                remove_new_lines(metadata.value())
+                            ),
                         );
                     }
 
-                    // Add the data to the packet
-                    new_packet.add_metadata(metadata.name(), metadata.value());
+                    // Add the data to the packet while replacing the CSV delimiter "|"
+                    new_packet.add_metadata(metadata.name(), &metadata.value());
                 }
             }
         }
