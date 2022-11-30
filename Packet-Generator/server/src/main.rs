@@ -10,8 +10,11 @@ async fn main() -> std::io::Result<()> {
         API_IP_ADDRESS, PORT
     );
 
-    // Todo: create a thread to generate simulated legitimate packets
-    // Todo: refactor API routes code
+    // Todo:
+    // - Create a thread to generate simulated legitimate packets
+    // - Refactor API routes code
+    // - Send a GET request to http://localhost:${RANDOM_PORT} on each
+    //   legitimate request to simulate a real user
 
     HttpServer::new(|| {
         // Set CORS

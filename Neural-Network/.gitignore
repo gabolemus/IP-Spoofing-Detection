@@ -1,0 +1,11 @@
+# Test Jupyter notebooks
+*test*.ipynb
+
+# Test Python scripts
+*test*.py
+
+# Neural network tests
+*Tests*/
+
+# Virtual environments
+.env

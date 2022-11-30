@@ -1,11 +1,8 @@
 # VS Code config
 .vscode/
 
-# Network traffic dumps
-tcpdump/
-
-# Traffic analysis files
-traffic-analysis/
+# Analysis Files
+Network-Analysis/
 
 # CSV files for data analysis
 *.csv
