@@ -186,6 +186,9 @@ impl Packet {
         fields.push("http.request.full_uri".to_string());
         fields.push("http.request".to_string());
         fields.push("http.request_number".to_string());
+        fields.push("http.bad_header_name".to_string());
+        fields.push("http.unknown_header".to_string());
+        fields.push("http.file_data".to_string());
 
         // JSON fields
         fields.push("json.array".to_string());
@@ -223,19 +226,27 @@ impl Packet {
         // If the field is "tcp.payload", remove the new lines and convert the
         // hex field to a string
         if metadata_name == "tcp.payload" {
+            // Hex to regular string
+            let base_value = remove_new_lines(&hex_to_string(metadata_value)).replace("|", ";");
+
             // Add the "tcp.payload_length" field
             self.metadata.insert(
                 "tcp.payload_length".to_string(),
-                metadata_value.len().to_string(),
+                base_value.len().to_string(),
             );
 
-            self.metadata.insert(
-                metadata_name.to_string(),
-                remove_new_lines(hex_to_string(metadata_value).as_str()).replace("|", ";"),
-            );
+            // Add the "tcp.payload" field
+            self.metadata.insert(metadata_name.to_string(), base_value);
         } else {
             self.metadata
                 .insert(metadata_name.to_string(), remove_new_lines(metadata_value));
+        }
+
+        // If the field starts with "http" or "json", just get the length of the
+        // field
+        if metadata_name.starts_with("http") || metadata_name.starts_with("json") {
+            self.metadata
+                .insert(metadata_name.to_string(), metadata_value.len().to_string());
         }
 
         // Add the field name to the corresponding vector and insert the key-
@@ -354,6 +365,7 @@ impl Packet {
                     }
                 }
             } else if !field.contains("frame.number") {
+                // Add a "-1" if the field is not in the packet
                 data.push_str("-1|");
             }
         }
