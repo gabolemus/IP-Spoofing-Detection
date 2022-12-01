@@ -12,7 +12,8 @@ use std::io::Write;
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     // Initially, no packets have been parsed. After the first iteration, this
     // value is used to skip the packets that have already been parsed
-    let mut parsed_packets: u32 = 0;
+    // let mut parsed_packets: u32 = 0;
+    let parsed_packets: u32 = 0;
     let mut iter = 1;
     let mut write_header = true;
 
@@ -35,15 +36,17 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
             &mut pcap_packets,
             &parsed_packets,
             &iter,
+            csv_file,
+            &mut write_header,
         );
 
         // Write the packets' data to the CSV file
-        write_to_csv_file(
-            pcap_packets,
-            csv_file,
-            &mut write_header,
-            &mut parsed_packets,
-        );
+        // write_to_csv_file(
+        //     pcap_packets,
+        //     csv_file,
+        //     &mut write_header,
+        //     &mut parsed_packets,
+        // );
 
         // Finish the progress bar
         let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
@@ -155,6 +158,8 @@ fn parse_pcap_file(
     pcap_packets: &mut Vec<Packet>,
     parsed_packets: &u32,
     iter: &u32,
+    mut csv_file: File,
+    write_header: &mut bool,
 ) {
     // Start a new tshark process
     let mut rtshark = rtshark_builder
@@ -210,7 +215,8 @@ fn parse_pcap_file(
                     }
 
                     // Add the data to the packet while replacing "|" with ";"
-                    new_packet.add_metadata(metadata.name(), metadata.value().replace("|", ";").as_str());
+                    new_packet
+                        .add_metadata(metadata.name(), metadata.value().replace("|", ";").as_str());
                 } else {
                     if !config.no_text_file {
                         // Write the data to the text file
@@ -231,28 +237,15 @@ fn parse_pcap_file(
             }
         }
 
-        pcap_packets.push(new_packet);
-    }
+        let temp_packet = new_packet.clone();
+        pcap_packets.push(temp_packet);
 
-    // Close the tshark process
-    rtshark.kill();
-}
-
-/// Write packet data to the CSV file
-fn write_to_csv_file(
-    mut pcap_packets: Vec<Packet>,
-    mut csv_file: File,
-    write_header: &mut bool,
-    parsed_packets: &mut u32,
-) {
-    if pcap_packets.len() > 0 {
+        // Write the packet's data to the CSV file
         // Determine the vector with more fields out of all the packets with a closure
         let all_fields = pcap_packets[0].get_fields_names();
 
         // Set the fields for all the packets
-        for packet in &mut pcap_packets {
-            packet.set_fields(all_fields.clone());
-        }
+        new_packet.set_fields(all_fields);
 
         // Write the CSV header to the file if the file doesn't exist and if it
         // has been written to yet
@@ -267,20 +260,58 @@ fn write_to_csv_file(
             *write_header = false;
         }
 
-        let mut written_packets = 0;
-
-        // Write the CSV data to the file
-        for packet in &pcap_packets {
-            written_packets += 1;
-
-            let csv_data = format!("{}\n", packet.get_csv_data());
-            csv_file.write_all(csv_data.as_bytes()).unwrap();
-        }
-
-        // Update the number of parsed packets
-        *parsed_packets += written_packets;
+        // Write the packet's data to the file
+        let csv_data = format!("{}\n", new_packet.get_csv_data());
+        csv_file.write_all(csv_data.as_bytes()).unwrap();
     }
+
+    // Close the tshark process
+    rtshark.kill();
 }
+
+// /// Write packet data to the CSV file
+// fn write_to_csv_file(
+//     mut pcap_packets: Vec<Packet>,
+//     mut csv_file: File,
+//     write_header: &mut bool,
+//     parsed_packets: &mut u32,
+// ) {
+//     if pcap_packets.len() > 0 {
+//         // Determine the vector with more fields out of all the packets with a closure
+//         let all_fields = pcap_packets[0].get_fields_names();
+
+//         // Set the fields for all the packets
+//         for packet in &mut pcap_packets {
+//             packet.set_fields(all_fields.clone());
+//         }
+
+//         // Write the CSV header to the file if the file doesn't exist and if it
+//         // has been written to yet
+//         if *write_header {
+//             // Write the header to the file
+//             let csv_header = pcap_packets[0].get_csv_header();
+//             csv_file
+//                 .write_all(format!("{}\n", csv_header).as_bytes())
+//                 .unwrap();
+
+//             // Set the write header flag to false
+//             *write_header = false;
+//         }
+
+//         let mut written_packets = 0;
+
+//         // Write the CSV data to the file
+//         for packet in &pcap_packets {
+//             written_packets += 1;
+
+//             let csv_data = format!("{}\n", packet.get_csv_data());
+//             csv_file.write_all(csv_data.as_bytes()).unwrap();
+//         }
+
+//         // Update the number of parsed packets
+//         *parsed_packets += written_packets;
+//     }
+// }
 
 /// Write to text file. Because the user can choose to not create said file, its
 /// argument is an Option<File>
