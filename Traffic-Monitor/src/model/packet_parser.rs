@@ -12,8 +12,7 @@ use std::io::Write;
 pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
     // Initially, no packets have been parsed. After the first iteration, this
     // value is used to skip the packets that have already been parsed
-    // let mut parsed_packets: u32 = 0;
-    let parsed_packets: u32 = 0;
+    let mut parsed_packets: u32 = 0;
     let mut iter = 1;
     let mut write_header = true;
 
@@ -34,7 +33,7 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
             builder,
             txt_file,
             &mut pcap_packets,
-            &parsed_packets,
+            &mut parsed_packets,
             &iter,
             csv_file,
             &mut write_header,
@@ -156,7 +155,7 @@ fn parse_pcap_file(
     rtshark_builder: RTSharkBuilderReady,
     mut txt_file: Option<File>,
     pcap_packets: &mut Vec<Packet>,
-    parsed_packets: &u32,
+    parsed_packets: &mut u32,
     iter: &u32,
     mut csv_file: File,
     write_header: &mut bool,
@@ -166,7 +165,7 @@ fn parse_pcap_file(
         .spawn()
         .unwrap_or_else(|e| panic!("Error starting tshark: {e}"));
 
-    let mut i: u32 = 1;
+    let mut i: u32 = 0;
     let mut is_first_packet = true;
 
     // Read the packets until the end of the PCAP file
@@ -175,14 +174,8 @@ fn parse_pcap_file(
         None
     }) {
         if *iter != 1 && i <= *parsed_packets {
-            i += 1;
             continue;
         }
-
-        println!("Paquete #{} analizado", i);
-
-        let mut new_packet = Packet::new();
-        new_packet.update_packet_number(i);
 
         if !config.no_text_file {
             if !is_first_packet {
@@ -197,6 +190,11 @@ fn parse_pcap_file(
 
         i += 1;
         is_first_packet = false;
+
+        println!("Paquete #{} analizado", i);
+
+        let mut new_packet = Packet::new();
+        new_packet.update_packet_number(i);
 
         for layer in packet {
             for metadata in layer {
@@ -263,6 +261,9 @@ fn parse_pcap_file(
         // Write the packet's data to the file
         let csv_data = format!("{}\n", new_packet.get_csv_data());
         csv_file.write_all(csv_data.as_bytes()).unwrap();
+
+        // Update the parsed packets counter
+        *parsed_packets += 1;
     }
 
     // Close the tshark process
