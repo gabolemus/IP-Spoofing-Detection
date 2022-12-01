@@ -7,7 +7,7 @@ on:
 
 jobs:
   traffic-generator-image:
-    name: Publish latest TCP/IP traffic generator image
+    name: Traffic generator (server) image
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
@@ -23,7 +23,7 @@ jobs:
         run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator:latest
   
   traffic-generator-frontend:
-    name: Publish latest TCP/IP traffic generator image
+    name: Traffic generator (frontend) image
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
@@ -39,7 +39,7 @@ jobs:
         run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-generator-frontend:latest
 
   traffic-monitor-image:
-    name: Publish latest TCP/IP traffic monitor image
+    name: Traffic monitor image
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
@@ -55,7 +55,7 @@ jobs:
         run: docker push ${{ secrets.DOCKER_USERNAME }}/packet-monitor:latest
   
   traffic-parser-image:
-    name: Publish latest TCP/IP traffic parser image
+    name: Traffic parser image
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
