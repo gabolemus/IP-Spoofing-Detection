@@ -56,13 +56,9 @@ impl Packet {
         // Packet frame fields
         fields.push("frame.cap_len".to_string());
         fields.push("frame.encap_type".to_string());
-        fields.push("frame.ignored".to_string());
         fields.push("frame.len".to_string());
-        fields.push("frame.marked".to_string());
-        fields.push("frame.number".to_string());
-        fields.push("frame.offset_shift".to_string());
+        // fields.push("frame.number".to_string());
         fields.push("frame.protocols".to_string());
-        // fields.push("frame.time".to_string());
         fields.push("frame.time_delta".to_string());
         fields.push("frame.time_delta_displayed".to_string());
         fields.push("frame.time_epoch".to_string());
@@ -277,12 +273,23 @@ impl Packet {
         // let mut header = "frame.number|is_spoofed|".to_string();
         let mut header = "is_spoofed|".to_string();
 
-        // Add the rest of the fields; exclude the "frame.number" field
-        for field in &self.fields {
-            if field != "frame.number" {
-                header.push_str(format!("{}|", field).as_str());
+        // Add the other fields, except the "frame.number" and "is_spoofed"
+        // fields
+        let fields = &self.get_fields_names();
+
+        for field in fields {
+            if field != "frame.number" && field != "is_spoofed" {
+                header.push_str(field);
+                header.push('|');
             }
         }
+
+        // // Add the rest of the fields; exclude the "frame.number" field
+        // for field in &self.fields {
+        //     if field != "frame.number" {
+        //         header.push_str(format!("{}|", field).as_str());
+        //     }
+        // }
 
         // Remove the last comma and return the header
         header.pop();
