@@ -55,14 +55,9 @@ impl Packet {
         // Add the metadata fields
         // Packet frame fields
         fields.push("frame.cap_len".to_string());
-        fields.push("frame.encap_type".to_string());
-        fields.push("frame.ignored".to_string());
         fields.push("frame.len".to_string());
-        fields.push("frame.marked".to_string());
         fields.push("frame.number".to_string());
-        fields.push("frame.offset_shift".to_string());
         fields.push("frame.protocols".to_string());
-        // fields.push("frame.time".to_string());
         fields.push("frame.time_delta".to_string());
         fields.push("frame.time_delta_displayed".to_string());
         fields.push("frame.time_epoch".to_string());
@@ -186,33 +181,13 @@ impl Packet {
         fields.push("tcp.window_size".to_string());
         fields.push("tcp.window_size_scalefactor".to_string());
 
-        // UDP fields
-        fields.push("udp.checksum".to_string());
-        fields.push("udp.dstport".to_string());
-        fields.push("udp.length".to_string());
-        fields.push("udp.length.bad".to_string());
-        fields.push("udp.length.bad_zero".to_string());
-        fields.push("udp.payload".to_string());
-        fields.push("udp.pdu.size".to_string());
-        fields.push("udp.port".to_string());
-        fields.push("udp.possible_traceroute".to_string());
-        fields.push("udp.proc.dstcmd".to_string());
-        fields.push("udp.proc.dstpid".to_string());
-        fields.push("udp.proc.dstuid".to_string());
-        fields.push("udp.proc.dstuname".to_string());
-        fields.push("udp.proc.srccmd".to_string());
-        fields.push("udp.proc.srcpid".to_string());
-        fields.push("udp.proc.srcuid".to_string());
-        fields.push("udp.proc.srcuname".to_string());
-        fields.push("udp.srcport".to_string());
-        fields.push("udp.stream".to_string());
-        fields.push("udp.time_delta".to_string());
-        fields.push("udp.time_relative".to_string());
-
         // HTTP fields
         fields.push("http.request.full_uri".to_string());
         fields.push("http.request".to_string());
         fields.push("http.request_number".to_string());
+        fields.push("http.bad_header_name".to_string());
+        fields.push("http.unknown_header".to_string());
+        fields.push("http.file_data".to_string());
 
         // JSON fields
         fields.push("json.array".to_string());
@@ -250,19 +225,27 @@ impl Packet {
         // If the field is "tcp.payload", remove the new lines and convert the
         // hex field to a string
         if metadata_name == "tcp.payload" {
+            // Hex to regular string
+            let base_value = remove_new_lines(&hex_to_string(metadata_value)).replace("|", ";");
+
             // Add the "tcp.payload_length" field
             self.metadata.insert(
                 "tcp.payload_length".to_string(),
-                metadata_value.len().to_string(),
+                base_value.len().to_string(),
             );
 
-            self.metadata.insert(
-                metadata_name.to_string(),
-                remove_new_lines(hex_to_string(metadata_value).as_str()).replace("|", ";"),
-            );
+            // Add the "tcp.payload" field
+            self.metadata.insert(metadata_name.to_string(), base_value);
         } else {
             self.metadata
                 .insert(metadata_name.to_string(), remove_new_lines(metadata_value));
+        }
+
+        // If the field starts with "http" or "json", just get the length of the
+        // field
+        if metadata_name.starts_with("http") || metadata_name.starts_with("json") {
+            self.metadata
+                .insert(metadata_name.to_string(), metadata_value.len().to_string());
         }
 
         // Add the field name to the corresponding vector and insert the key-
@@ -381,6 +364,7 @@ impl Packet {
                     }
                 }
             } else if !field.contains("frame.number") {
+                // Add a "-1" if the field is not in the packet
                 data.push_str("-1|");
             }
         }

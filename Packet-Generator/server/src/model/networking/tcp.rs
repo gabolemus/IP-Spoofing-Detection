@@ -89,12 +89,12 @@ impl TCPPacket {
         let header = TCPHeader::new(
             source_port.unwrap_or(80),      // Default to port 80
             destination_port.unwrap_or(80), // Default to port 80
-            0,                              // Sequence number
-            0,                              // Acknowledgement number
+            1,                              // Sequence number
+            1,                              // Acknowledgement number
             data_offset.unwrap_or(5),       // Default to 5
             reserved.unwrap_or(0),          // Default to 0
             flags.unwrap_or(2),             // Default to SYN
-            window_size.unwrap_or(29200),   // Default to 29200
+            window_size.unwrap_or(502),     // Default to 502
             0,                              // Will be calculated later
             urgent_pointer.unwrap_or(0),    // Default to 0
             options,                        // Options
@@ -147,6 +147,7 @@ impl TCPPacket {
 
         // Options (0-40 bytes - Index 21)
         if let Some(options) = &header.options {
+            println!("Adding options to the packet");
             packet.extend_from_slice(options);
         }
 

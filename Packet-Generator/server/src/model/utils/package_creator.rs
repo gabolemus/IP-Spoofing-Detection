@@ -1,24 +1,18 @@
 // This file contains the helpers for creating the spoofed TCP/IP packets.
 
-use crate::{
-    api::{
-        routes::{DUMMY_MESSAGE, THREAD_COUNT},
-        DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS,
-    },
-    model::networking::{get_local_ip, TCPIPv4Packet, TCPIPv6Packet},
-    IPSocket, API_IP_ADDRESS,
-};
+use crate::api::routes::{DUMMY_MESSAGE, THREAD_COUNT};
+use crate::api::{DESTINATION_IP_ADDRESS, STOP_INFINITE_PACKETS};
+use crate::model::networking::{get_local_ip, TCPIPv4Packet, TCPIPv6Packet};
+use crate::{IPSocket, API_IP_ADDRESS};
 use actix_web::web;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use socket2::{Domain, Protocol, Socket, Type};
-use std::{
-    error::Error,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
-    str::FromStr,
-    thread,
-    time::Duration,
-};
+use std::error::Error;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::str::FromStr;
+use std::thread;
+use std::time::Duration;
 
 /// Program arguments.
 ///
@@ -307,46 +301,80 @@ fn create_packet(
     randomize_source_ip: bool,
     randomize_tcp_port: bool,
 ) -> Vec<u8> {
-    // println!("Source IP address: {}", config.source_ip);
-    // println!("Destination IP address: {}", config.destination_ip);
-    if randomize_tcp_port {
-        config.randomize_port();
-    }
+    // 50% chance of creating a raw HTTP request packet
+    if !rand::thread_rng().gen_bool(0.5) {
+        if randomize_tcp_port {
+            config.randomize_port();
+        }
 
-    if config.ip_version == 4 {
+        if config.ip_version == 4 {
+            if randomize_source_ip {
+                config.set_source_ip(get_random_ip(4));
+            }
+
+            // Create the TCP/IP v4 packet
+            let packet = TCPIPv4Packet::new(
+                get_ipv4_addr(config.source_ip),
+                get_ipv4_addr(config.destination_ip),
+                None,                      // Default IP flags
+                None,                      // Default TCP flags
+                Some(config.data.clone()), // Payload to be sent
+                // None, // Send no payload
+                None,
+                config.port,
+                spoof_packet,
+            );
+
+            // Display the raw packet in hex
+            // packet.display();
+
+            // Return the packet
+            packet.raw
+        } else {
+            if randomize_source_ip {
+                config.set_source_ip(get_random_ip(6));
+            }
+
+            // Create the TCP/IP v6 packet
+            let packet = TCPIPv6Packet::new(
+                get_ipv6_addr(config.source_ip),
+                get_ipv6_addr(config.destination_ip),
+                Some(config.data.clone()), // Payload to be sent
+                // None, // Send no payload
+                None,
+                config.port,
+            );
+
+            // Display the raw packet in hex
+            // packet.display();
+
+            // Return the packet
+            packet.raw
+        }
+    } else {
+        if randomize_tcp_port {
+            config.randomize_port();
+        }
+
         if randomize_source_ip {
             config.set_source_ip(get_random_ip(4));
         }
+
+        let http_pkt_req = create_http_request().as_bytes().to_vec();
+        let pkt_options: Vec<u8> = vec![
+            0x01, 0x01, 0x08, 0x0a, 0xe9, 0x0d, 0x64, 0x83, 0x09, 0x97, 0xf1, 0xf4,
+        ];
 
         // Create the TCP/IP v4 packet
         let packet = TCPIPv4Packet::new(
             get_ipv4_addr(config.source_ip),
             get_ipv4_addr(config.destination_ip),
-            Some(config.data.clone()), // Payload to be sent
-            // None, // Send no payload
-            None,
+            Some(0b0110),       // IP flags: RB = 1, DF = 1, MF = 0
+            Some(0b00011000),   // TCP flags: PSH = 1, ACK = 1, everything else = 0
+            Some(http_pkt_req), // Payload to be sent
+            Some(pkt_options),  // TCP options
             config.port,
             spoof_packet,
-        );
-
-        // Display the raw packet in hex
-        // packet.display();
-
-        // Return the packet
-        packet.raw
-    } else {
-        if randomize_source_ip {
-            config.set_source_ip(get_random_ip(6));
-        }
-
-        // Create the TCP/IP v6 packet
-        let packet = TCPIPv6Packet::new(
-            get_ipv6_addr(config.source_ip),
-            get_ipv6_addr(config.destination_ip),
-            Some(config.data.clone()), // Payload to be sent
-            // None, // Send no payload
-            None,
-            config.port,
         );
 
         // Display the raw packet in hex
@@ -446,7 +474,7 @@ fn send_multiple_packets_thread(
                 i = i + 1;
 
                 // Create and send the packet
-                create_and_send_packet(
+                create_http_packet(
                     config.clone(),
                     i,
                     spoof_packet,
@@ -469,7 +497,7 @@ fn send_multiple_packets_thread(
                 }
 
                 // Create and send the packet
-                create_and_send_packet(
+                create_http_packet(
                     config.clone(),
                     count,
                     spoof_packet,
@@ -492,7 +520,7 @@ fn send_multiple_packets_thread(
 }
 
 /// Create and send packet with the provided configuration
-fn create_and_send_packet(
+fn create_http_packet(
     config: Config,
     packet_number: i32,
     spoof_packet: bool,
@@ -521,4 +549,100 @@ fn create_and_send_packet(
 
     // Wait the specified time
     thread::sleep(Duration::from_millis(config.wait_time.unwrap_or(500)));
+}
+
+/// Create a HTTP request string
+fn create_http_request() -> String {
+    // HTTP request data
+    let mut http_request = String::from("");
+
+    // Randomize the request method
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str("GET"),
+        1 => http_request.push_str("POST"),
+        2 => http_request.push_str("HEAD"),
+        3 => http_request.push_str("OPTIONS"),
+        _ => http_request.push_str("GET"),
+    };
+
+    // Randomize the request URI
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" /"),
+        1 => http_request.push_str(" /index.html"),
+        2 => http_request.push_str(" /index.php"),
+        3 => http_request.push_str(" /index.asp"),
+        _ => http_request.push_str(" /"),
+    };
+
+    // Randomize the request version
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" HTTP/1.0"),
+        1 => http_request.push_str(" HTTP/1.1"),
+        2 => http_request.push_str(" HTTP/2.0"),
+        3 => http_request.push_str(" HTTP/3.0"),
+        _ => http_request.push_str(" HTTP/1.1"),
+    };
+
+    // Randomize the request host
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" Host: google.com"),
+        1 => http_request.push_str(" Host: facebook.com"),
+        2 => http_request.push_str(" Host: youtube.com"),
+        3 => http_request.push_str(" Host: twitter.com"),
+        _ => http_request.push_str(" Host: google.com"),
+    };
+
+    // Randomize the request user agent
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0"),
+        1 => http_request.push_str(" User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0"),
+        2 => http_request.push_str(" User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36"),
+        3 => http_request.push_str(" User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 13_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Mobile/15E148 Safari/604.1"),
+        _ => http_request.push_str(" User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0"),
+    };
+
+    // Request accept
+    http_request.push_str(
+        " Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    );
+
+    // Request accept language
+    http_request.push_str(" Accept-Language: en-US,en;q=0.5");
+
+    // Randomize the request accept encoding
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" Accept-Encoding: gzip, deflate, br"),
+        1 => http_request.push_str(" Accept-Encoding: gzip"),
+        2 => http_request.push_str(" Accept-Encoding: deflate"),
+        3 => http_request.push_str(" Accept-Encoding: br"),
+        _ => http_request.push_str(" Accept-Encoding: gzip, deflate, br"),
+    };
+
+    // Randomize the request connection
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" Connection: keep-alive"),
+        1 => http_request.push_str(" Connection: close"),
+        2 => http_request.push_str(" Connection: upgrade"),
+        3 => http_request.push_str(" Connection: TE"),
+        _ => http_request.push_str(" Connection: keep-alive"),
+    };
+
+    // Randomize the request upgrade insecure requests
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" Upgrade-Insecure-Requests: 1"),
+        1 => http_request.push_str(" Upgrade-Insecure-Requests: 0"),
+        _ => http_request.push_str(" Upgrade-Insecure-Requests: 1"),
+    };
+
+    // Randomize the request cache control
+    match rand::thread_rng().gen_range(0..=3) {
+        0 => http_request.push_str(" Cache-Control: max-age=0"),
+        1 => http_request.push_str(" Cache-Control: no-cache"),
+        2 => http_request.push_str(" Cache-Control: no-store"),
+        3 => http_request.push_str(" Cache-Control: must-revalidate"),
+        _ => http_request.push_str(" Cache-Control: max-age=0"),
+    };
+
+    // Return the request
+    http_request
 }
