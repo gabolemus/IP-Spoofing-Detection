@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use super::IPv4Packet;
 use crate::model::networking::{IPPacket, TCPPacket};
 use std::net::Ipv4Addr;
@@ -17,6 +19,8 @@ impl TCPIPv4Packet {
     pub fn new(
         source_ip: Ipv4Addr,
         destination_ip: Ipv4Addr,
+        ip_flags: Option<u8>,
+        tcp_flags: Option<u16>,
         data: Option<Vec<u8>>,
         options: Option<Vec<u8>>,
         port: u16,
@@ -27,9 +31,9 @@ impl TCPIPv4Packet {
             None,
             None,
             None,
+            ip_flags,
             None,
-            None,
-            if rand::random() { 64 } else { 128 }, // Simulate common Linux TTL (64) and Windows TTL (128)
+            rand::thread_rng().gen_range(1..=128),
             source_ip,
             destination_ip,
             None,
@@ -43,7 +47,7 @@ impl TCPIPv4Packet {
             Some(if rand::random() { 80 } else { 443 }), // Choose either 80 (HTTP) or 443 (HTTPS) as the destination port randomly
             None,
             None,
-            None,
+            tcp_flags,
             None,
             None,
             options,
