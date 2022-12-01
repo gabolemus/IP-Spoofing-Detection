@@ -23,6 +23,14 @@ pub fn send_single_legitimate_packet(
 ) -> Result<&'static str, Box<dyn Error>> {
     // Get the default network interface
     let default_interface = get_default_network_interface();
+
+    // If the default interface is empty, return 'eth0' as the default interface
+    let default_interface = if default_interface.is_empty() {
+        "eth0".to_string()
+    } else {
+        default_interface
+    };
+    
     let interface = datalink::interfaces()
         .into_iter()
         .filter(|iface: &NetInt| iface.name == default_interface)

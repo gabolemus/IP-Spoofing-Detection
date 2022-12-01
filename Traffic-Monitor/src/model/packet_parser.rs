@@ -33,18 +33,17 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
             builder,
             txt_file,
             &mut pcap_packets,
-            &mut parsed_packets,
-            csv_file,
-            &mut write_header,
+            &parsed_packets,
+            &iter,
         );
 
         // Write the packets' data to the CSV file
-        // write_to_csv_file(
-        //     pcap_packets,
-        //     csv_file,
-        //     &mut write_header,
-        //     &mut parsed_packets,
-        // );
+        write_to_csv_file(
+            pcap_packets,
+            csv_file,
+            &mut write_header,
+            &mut parsed_packets,
+        );
 
         // Finish the progress bar
         let finish_msg = format!("¡Análisis de paquetes #{} finalizado!", iter);
@@ -154,16 +153,15 @@ fn parse_pcap_file(
     rtshark_builder: RTSharkBuilderReady,
     mut txt_file: Option<File>,
     pcap_packets: &mut Vec<Packet>,
-    parsed_packets: &mut u32,
-    mut csv_file: File,
-    write_header: &mut bool,
+    parsed_packets: &u32,
+    iter: &u32,
 ) {
     // Start a new tshark process
     let mut rtshark = rtshark_builder
         .spawn()
         .unwrap_or_else(|e| panic!("Error starting tshark: {e}"));
 
-    let mut i: u32 = 0;
+    let mut i: u32 = 1;
     let mut is_first_packet = true;
 
     // Read the packets until the end of the PCAP file
@@ -171,9 +169,15 @@ fn parse_pcap_file(
         eprintln!("Error parsing tshark output: {e}");
         None
     }) {
-        // if *iter != 1 && i <= *parsed_packets {
-        //     continue;
-        // }
+        if *iter != 1 && i <= *parsed_packets {
+            i += 1;
+            continue;
+        }
+
+        println!("Paquete #{} analizado", i);
+
+        let mut new_packet = Packet::new();
+        new_packet.update_packet_number(i);
 
         if !config.no_text_file {
             if !is_first_packet {
@@ -188,11 +192,6 @@ fn parse_pcap_file(
 
         i += 1;
         is_first_packet = false;
-
-        println!("Paquete #{} analizado", i);
-
-        let mut new_packet = Packet::new();
-        new_packet.update_packet_number(i);
 
         for layer in packet {
             for metadata in layer {
@@ -233,15 +232,28 @@ fn parse_pcap_file(
             }
         }
 
-        let temp_packet = new_packet.clone();
-        pcap_packets.push(temp_packet);
+        pcap_packets.push(new_packet);
+    }
 
-        // Write the packet's data to the CSV file
+    // Close the tshark process
+    rtshark.kill();
+}
+
+/// Write packet data to the CSV file
+fn write_to_csv_file(
+    mut pcap_packets: Vec<Packet>,
+    mut csv_file: File,
+    write_header: &mut bool,
+    parsed_packets: &mut u32,
+) {
+    if pcap_packets.len() > 0 {
         // Determine the vector with more fields out of all the packets with a closure
         let all_fields = pcap_packets[0].get_fields_names();
 
         // Set the fields for all the packets
-        new_packet.set_fields(all_fields);
+        for packet in &mut pcap_packets {
+            packet.set_fields(all_fields.clone());
+        }
 
         // Write the CSV header to the file if the file doesn't exist and if it
         // has been written to yet
@@ -256,61 +268,20 @@ fn parse_pcap_file(
             *write_header = false;
         }
 
-        // Write the packet's data to the file
-        let csv_data = format!("{}\n", new_packet.get_csv_data());
-        csv_file.write_all(csv_data.as_bytes()).unwrap();
+        let mut written_packets = 0;
 
-        // Update the parsed packets counter
-        *parsed_packets += 1;
+        // Write the CSV data to the file
+        for packet in &pcap_packets {
+            written_packets += 1;
+
+            let csv_data = format!("{}\n", packet.get_csv_data());
+            csv_file.write_all(csv_data.as_bytes()).unwrap();
+        }
+
+        // Update the number of parsed packets
+        *parsed_packets += written_packets;
     }
-
-    // Close the tshark process
-    rtshark.kill();
 }
-
-// /// Write packet data to the CSV file
-// fn write_to_csv_file(
-//     mut pcap_packets: Vec<Packet>,
-//     mut csv_file: File,
-//     write_header: &mut bool,
-//     parsed_packets: &mut u32,
-// ) {
-//     if pcap_packets.len() > 0 {
-//         // Determine the vector with more fields out of all the packets with a closure
-//         let all_fields = pcap_packets[0].get_fields_names();
-
-//         // Set the fields for all the packets
-//         for packet in &mut pcap_packets {
-//             packet.set_fields(all_fields.clone());
-//         }
-
-//         // Write the CSV header to the file if the file doesn't exist and if it
-//         // has been written to yet
-//         if *write_header {
-//             // Write the header to the file
-//             let csv_header = pcap_packets[0].get_csv_header();
-//             csv_file
-//                 .write_all(format!("{}\n", csv_header).as_bytes())
-//                 .unwrap();
-
-//             // Set the write header flag to false
-//             *write_header = false;
-//         }
-
-//         let mut written_packets = 0;
-
-//         // Write the CSV data to the file
-//         for packet in &pcap_packets {
-//             written_packets += 1;
-
-//             let csv_data = format!("{}\n", packet.get_csv_data());
-//             csv_file.write_all(csv_data.as_bytes()).unwrap();
-//         }
-
-//         // Update the number of parsed packets
-//         *parsed_packets += written_packets;
-//     }
-// }
 
 /// Write to text file. Because the user can choose to not create said file, its
 /// argument is an Option<File>
