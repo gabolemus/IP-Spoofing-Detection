@@ -274,7 +274,8 @@ impl Packet {
     /// Get CSV header
     pub fn get_csv_header(&self) -> String {
         // Initialize a string with the "frame.number" and "is_spoofed" field
-        let mut header = "frame.number|is_spoofed|".to_string();
+        // let mut header = "frame.number|is_spoofed|".to_string();
+        let mut header = "is_spoofed|".to_string();
 
         // Add the rest of the fields; exclude the "frame.number" field
         for field in &self.fields {
@@ -291,7 +292,8 @@ impl Packet {
     /// Get CSV data
     pub fn get_csv_data(&self) -> String {
         // Initialize a string with the "frame.number" and "is_spoofed" field
-        let mut data = format!("{}|{}|", self.metadata["frame.number"], self.is_spoofed);
+        // let mut data = format!("{}|{}|", self.metadata["frame.number"], self.is_spoofed);
+        let mut data = format!("{}|", self.is_spoofed);
 
         // Add the rest of the fields
         for field in &self.fields {
