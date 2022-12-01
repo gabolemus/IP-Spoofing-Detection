@@ -34,7 +34,6 @@ pub fn run(config: &Config) -> Result<&'static str, Box<dyn Error>> {
             txt_file,
             &mut pcap_packets,
             &mut parsed_packets,
-            &iter,
             csv_file,
             &mut write_header,
         );
@@ -156,7 +155,6 @@ fn parse_pcap_file(
     mut txt_file: Option<File>,
     pcap_packets: &mut Vec<Packet>,
     parsed_packets: &mut u32,
-    iter: &u32,
     mut csv_file: File,
     write_header: &mut bool,
 ) {
@@ -173,9 +171,9 @@ fn parse_pcap_file(
         eprintln!("Error parsing tshark output: {e}");
         None
     }) {
-        if *iter != 1 && i <= *parsed_packets {
-            continue;
-        }
+        // if *iter != 1 && i <= *parsed_packets {
+        //     continue;
+        // }
 
         if !config.no_text_file {
             if !is_first_packet {
