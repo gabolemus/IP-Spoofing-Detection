@@ -272,10 +272,18 @@ fn write_to_csv_file(
 
         // Write the CSV data to the file
         for packet in &pcap_packets {
-            written_packets += 1;
+            // If the packet is TCP/IPv4, write it to the file. Otherwise,
+            // ignore it
+            if packet.get_metadata("ip.proto").unwrap_or("No protocol") == "6"
+                && packet.get_metadata("ip.version").unwrap_or("No version") == "4"
+            {
+                // Write the packet data to the file
+                csv_file
+                    .write_all(format!("{}\n", packet.get_csv_data()).as_bytes())
+                    .unwrap();
 
-            let csv_data = format!("{}\n", packet.get_csv_data());
-            csv_file.write_all(csv_data.as_bytes()).unwrap();
+                written_packets += 1;
+            }
         }
 
         // Update the number of parsed packets
