@@ -54,47 +54,47 @@ impl Packet {
 
         // Add the metadata fields
         // Packet frame fields
+        fields.push("frame.encap_type".to_string());
         fields.push("frame.cap_len".to_string());
-        // fields.push("frame.encap_type".to_string());
         fields.push("frame.len".to_string());
-        // fields.push("frame.number".to_string());
         fields.push("frame.protocols".to_string());
         fields.push("frame.time_delta".to_string());
+        fields.push("frame.time_relative".to_string());
+        // fields.push("frame.number".to_string());
         // fields.push("frame.time_delta_displayed".to_string());
         // fields.push("frame.time_epoch".to_string());
-        fields.push("frame.time_relative".to_string());
 
         // SLL - Linux cooked capture fields
         fields.push("sll.etype".to_string());
-        // fields.push("sll.halen".to_string());
-        // fields.push("sll.hatype".to_string());
         fields.push("sll.ifindex".to_string());
         fields.push("sll.pkttype".to_string());
         fields.push("sll.src.eth".to_string());
         fields.push("sll.unused".to_string());
+        // fields.push("sll.halen".to_string());
+        // fields.push("sll.hatype".to_string());
 
         // IPv4 fields
+        fields.push("ip.hdr_len".to_string());
+        fields.push("ip.len".to_string());
+        fields.push("ip.flags.rb".to_string());
+        fields.push("ip.flags.df".to_string());
+        fields.push("ip.flags.mf".to_string());
+        fields.push("ip.frag_offset".to_string());
+        fields.push("ip.ttl".to_string());
+        fields.push("ip.proto".to_string());
+        fields.push("ip.src".to_string());
+        fields.push("ip.dst".to_string());
         // fields.push("ip.addr".to_string());
         // fields.push("ip.checksum".to_string());
         // fields.push("ip.checksum.status".to_string());
         // fields.push("ip.dsfield".to_string());
         // fields.push("ip.dsfield.dscp".to_string());
         // fields.push("ip.dsfield.ecn".to_string());
-        // fields.push("ip.dst".to_string());
         // fields.push("ip.dst_host".to_string());
         // fields.push("ip.flags".to_string());
-        fields.push("ip.flags.df".to_string());
-        fields.push("ip.flags.mf".to_string());
-        fields.push("ip.flags.rb".to_string());
-        fields.push("ip.frag_offset".to_string());
-        fields.push("ip.hdr_len".to_string());
         // fields.push("ip.host".to_string());
         // fields.push("ip.id".to_string());
-        fields.push("ip.len".to_string());
-        fields.push("ip.proto".to_string());
-        // fields.push("ip.src".to_string());
         // fields.push("ip.src_host".to_string());
-        fields.push("ip.ttl".to_string());
         // fields.push("ip.version".to_string());
 
         // IPv6 fields
@@ -121,7 +121,23 @@ impl Packet {
         // fields.push("ipv6.version".to_string());
 
         // TCP fields
+        fields.push("tcp.srcport".to_string());
+        fields.push("tcp.dstport".to_string());
+        fields.push("tcp.hdr_len".to_string());
+        fields.push("tcp.len".to_string());
         fields.push("tcp.ack".to_string());
+        fields.push("tcp.flags.ack".to_string());
+        fields.push("tcp.flags.ae".to_string());
+        fields.push("tcp.flags.cwr".to_string());
+        fields.push("tcp.flags.ece".to_string());
+        fields.push("tcp.flags.fin".to_string());
+        fields.push("tcp.flags.push".to_string());
+        fields.push("tcp.flags.res".to_string());
+        fields.push("tcp.flags.reset".to_string());
+        fields.push("tcp.flags.syn".to_string());
+        fields.push("tcp.flags.urg".to_string());
+        fields.push("tcp.window_size".to_string());
+        fields.push("tcp.time_delta".to_string());
         // fields.push("tcp.ack_raw".to_string());
         // fields.push("tcp.analysis.ack_rtt".to_string());
         // fields.push("tcp.analysis.acks_frame".to_string());
@@ -135,20 +151,7 @@ impl Packet {
         // fields.push("tcp.checksum".to_string());
         // fields.push("tcp.checksum.status".to_string());
         // fields.push("tcp.completeness".to_string());
-        fields.push("tcp.dstport".to_string());
         // fields.push("tcp.flags".to_string());
-        fields.push("tcp.flags.ack".to_string());
-        fields.push("tcp.flags.ae".to_string());
-        fields.push("tcp.flags.cwr".to_string());
-        fields.push("tcp.flags.ece".to_string());
-        fields.push("tcp.flags.fin".to_string());
-        fields.push("tcp.flags.push".to_string());
-        fields.push("tcp.flags.res".to_string());
-        fields.push("tcp.flags.reset".to_string());
-        fields.push("tcp.flags.syn".to_string());
-        fields.push("tcp.flags.urg".to_string());
-        fields.push("tcp.hdr_len".to_string());
-        fields.push("tcp.len".to_string());
         // fields.push("tcp.nxtseq".to_string());
         // fields.push("tcp.option_kind".to_string());
         // fields.push("tcp.option_len".to_string());
@@ -173,13 +176,10 @@ impl Packet {
         // fields.push("tcp.segment_data".to_string());
         // fields.push("tcp.seq".to_string());
         // fields.push("tcp.seq_raw".to_string());
-        fields.push("tcp.srcport".to_string());
         // fields.push("tcp.stream".to_string());
-        fields.push("tcp.time_delta".to_string());
         // fields.push("tcp.time_relative".to_string());
         // fields.push("tcp.urgent_pointer".to_string());
         // fields.push("tcp.urgent_pointer.non_zero".to_string());
-        fields.push("tcp.window_size".to_string());
         // fields.push("tcp.window_size_scalefactor".to_string());
 
         // UDP fields
@@ -309,86 +309,88 @@ impl Packet {
             if self.metadata.contains_key(field) && !field.contains("frame.number") {
                 let field_name = field.as_str();
 
-                if field_name == "frame.protocols" {
-                    // Get the protocols stack
-                    let protocols = handle_protocols_stack_field(self.metadata[field].as_str());
+                data.push_str(format!("{}|", self.metadata[field_name]).as_str());
 
-                    // Add the protocols to the data string
-                    data.push_str(format!("{}|", protocols).as_str());
-                } else if field_name == "sll.etype"
-                    || field_name == "ip.dsfield"
-                    || field_name == "ip.flags"
-                    || field_name == "ip.checksum"
-                    || field_name == "ip.id"
-                    || field_name == "ipv6.flow"
-                    || field_name == "ipv6.opt.type"
-                    || field_name == "ipv6.opt.type.rest"
-                    || field_name == "ipv6.tclass"
-                    || field_name == "tcp.checksum"
-                    || field_name == "tcp.flags"
-                {
-                    // Starts with "0x"
-                    // Hex field to decimal
-                    let etype = hex_to_decimal(self.metadata[field].as_str());
+                // if field_name == "frame.protocols" {
+                //     // Get the protocols stack
+                //     let protocols = handle_protocols_stack_field(self.metadata[field].as_str());
 
-                    // Add the protocol to the data string
-                    data.push_str(format!("{}|", etype).as_str());
-                } else if field_name == "sll.src.eth"
-                    || field_name == "sll.unused"
-                    || field_name == "ipv6.addr"
-                    || field_name == "ipv6.dst"
-                    || field_name == "ipv6.dst_host"
-                    || field_name == "ipv6.host"
-                    || field_name == "ipv6.src"
-                    || field_name == "ipv6.src_host"
-                    || field_name == "tcp.options"
-                    || field_name == "tcp.options.mss"
-                    || field_name == "tcp.segment_data"
-                {
-                    // Hexadecimals separated by colons
-                    // Convert the MAC address to a string
-                    let mac = hex_colon_to_decimal(self.metadata[field].as_str());
+                //     // Add the protocols to the data string
+                //     data.push_str(format!("{}|", protocols).as_str());
+                // } else if field_name == "sll.etype"
+                //     || field_name == "ip.dsfield"
+                //     || field_name == "ip.flags"
+                //     || field_name == "ip.checksum"
+                //     || field_name == "ip.id"
+                //     || field_name == "ipv6.flow"
+                //     || field_name == "ipv6.opt.type"
+                //     || field_name == "ipv6.opt.type.rest"
+                //     || field_name == "ipv6.tclass"
+                //     || field_name == "tcp.checksum"
+                //     || field_name == "tcp.flags"
+                // {
+                //     // Starts with "0x"
+                //     // Hex field to decimal
+                //     let etype = hex_to_decimal(self.metadata[field].as_str());
 
-                    // Add the MAC address to the data string
-                    data.push_str(format!("{}|", mac).as_str());
-                } else if field_name == "ip.addr"
-                    || field_name == "ip.dst"
-                    || field_name == "ip.dst_host"
-                    || field_name == "ip.host"
-                    || field_name == "ip.src"
-                    || field_name == "ip.src_host"
-                {
-                    // 4 octets separated by dots
-                    // Get the IP addresses
-                    let ip_addresses = ipv4_to_decimal(self.metadata[field].as_str());
+                //     // Add the protocol to the data string
+                //     data.push_str(format!("{}|", etype).as_str());
+                // } else if field_name == "sll.src.eth"
+                //     || field_name == "sll.unused"
+                //     || field_name == "ipv6.addr"
+                //     || field_name == "ipv6.dst"
+                //     || field_name == "ipv6.dst_host"
+                //     || field_name == "ipv6.host"
+                //     || field_name == "ipv6.src"
+                //     || field_name == "ipv6.src_host"
+                //     || field_name == "tcp.options"
+                //     || field_name == "tcp.options.mss"
+                //     || field_name == "tcp.segment_data"
+                // {
+                //     // Hexadecimals separated by colons
+                //     // Convert the MAC address to a string
+                //     let mac = hex_colon_to_decimal(self.metadata[field].as_str());
 
-                    // Add the IP addresses to the data string
-                    data.push_str(format!("{}|", ip_addresses).as_str());
-                } else if field_name == "tcp.payload"
-                    || field_name == "http.request.full_uri"
-                    || field_name == "json.value.string"
-                    || field_name == "json.path_with_value"
-                    || field_name == "json.path"
-                    || field_name == "json.member_with_value"
-                    || field_name == "json.member"
-                    || field_name == "json.key"
-                {
-                    // If the payload is not empty, append a "1"
-                    if self.metadata[field].len() > 0
-                        && (self.metadata[field] != "" || self.metadata[field] != " ")
-                    {
-                        data.push_str("1|");
-                    } else {
-                        data.push_str("0|");
-                    }
-                } else {
-                    // If the field is empty, return a "0"
-                    if self.metadata[field] == "" || self.metadata[field] == " " {
-                        data.push_str("0|");
-                    } else {
-                        data.push_str(format!("{}|", self.metadata[field]).as_str());
-                    }
-                }
+                //     // Add the MAC address to the data string
+                //     data.push_str(format!("{}|", mac).as_str());
+                // } else if field_name == "ip.addr"
+                //     || field_name == "ip.dst"
+                //     || field_name == "ip.dst_host"
+                //     || field_name == "ip.host"
+                //     || field_name == "ip.src"
+                //     || field_name == "ip.src_host"
+                // {
+                //     // 4 octets separated by dots
+                //     // Get the IP addresses
+                //     let ip_addresses = ipv4_to_decimal(self.metadata[field].as_str());
+
+                //     // Add the IP addresses to the data string
+                //     data.push_str(format!("{}|", ip_addresses).as_str());
+                // } else if field_name == "tcp.payload"
+                //     || field_name == "http.request.full_uri"
+                //     || field_name == "json.value.string"
+                //     || field_name == "json.path_with_value"
+                //     || field_name == "json.path"
+                //     || field_name == "json.member_with_value"
+                //     || field_name == "json.member"
+                //     || field_name == "json.key"
+                // {
+                //     // If the payload is not empty, append a "1"
+                //     if self.metadata[field].len() > 0
+                //         && (self.metadata[field] != "" || self.metadata[field] != " ")
+                //     {
+                //         data.push_str("1|");
+                //     } else {
+                //         data.push_str("0|");
+                //     }
+                // } else {
+                //     // If the field is empty, return a "0"
+                //     if self.metadata[field] == "" || self.metadata[field] == " " {
+                //         data.push_str("0|");
+                //     } else {
+                //         data.push_str(format!("{}|", self.metadata[field]).as_str());
+                //     }
+                // }
             } else if !field.contains("frame.number") {
                 data.push_str("-1|");
             }
