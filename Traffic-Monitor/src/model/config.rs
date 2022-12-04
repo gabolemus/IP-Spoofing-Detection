@@ -1,6 +1,6 @@
 // This file contains the configuration struct used by the program.
 
-use clap::Arg;
+use clap::{App, Arg};
 use slog::{error, o, Drain, Logger};
 use std::sync::Mutex;
 
@@ -66,7 +66,7 @@ impl Config {
 /// Parse the command line arguments and return an `Option<Config>` struct.
 pub fn parse_cmd_args() -> Option<Config> {
     // Parse the command line arguments.
-    let matches = clap::App::new("traffic-monitor")
+    let matches = App::new("traffic-monitor")
         .version("1.0.0")
         .author("Gabriel Lemus <glemus.stuart@gmail.com>")
         .about("Convierte los paquetes de un archivo PCAP a un archivo CSV")
@@ -111,6 +111,11 @@ pub fn parse_cmd_args() -> Option<Config> {
         matches.value_of("pcap").unwrap(),
         matches.value_of("csv-out"),
         matches.value_of("time-interval").unwrap().parse().ok(),
-        matches.value_of("no-text-file").unwrap().parse().ok().unwrap(),
+        matches
+            .value_of("no-text-file")
+            .unwrap()
+            .parse()
+            .ok()
+            .unwrap(),
     )
 }
