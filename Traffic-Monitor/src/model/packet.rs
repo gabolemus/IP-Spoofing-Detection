@@ -84,6 +84,7 @@ impl Packet {
         fields.push("ip.proto".to_string());
         fields.push("ip.src".to_string());
         fields.push("ip.dst".to_string());
+        fields.push("ip.version".to_string());
         // fields.push("ip.addr".to_string());
         // fields.push("ip.checksum".to_string());
         // fields.push("ip.checksum.status".to_string());
@@ -95,7 +96,6 @@ impl Packet {
         // fields.push("ip.host".to_string());
         // fields.push("ip.id".to_string());
         // fields.push("ip.src_host".to_string());
-        // fields.push("ip.version".to_string());
 
         // IPv6 fields
         // fields.push("ipv6.addr".to_string());
@@ -233,6 +233,11 @@ impl Packet {
 
         // Return the fields
         fields
+    }
+
+    /// Get the metadata value for a given field
+    pub fn get_metadata(&self, field: &str) -> Option<&str> {
+        self.metadata.get(field).map(|s| s.as_str())
     }
 
     /// Add a new metadata value to the corresponding layer
